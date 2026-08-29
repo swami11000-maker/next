@@ -4,7 +4,7 @@ import { z } from "zod";
 import { getUserDeatail, runQuery, runTransaction } from "@/lib/auth";
 
 import type { Retailer } from "@/lib/auth";
-import { STATUS_SUCCESS } from "@/lib/statuses";
+import { STATUS_PENDING, STATUS_SUCCESS } from "@/lib/statuses";
 import { generate7DigitNumber } from "@/lib/utils";
 
 // -----------------------------------------------------
@@ -214,7 +214,7 @@ export async function POST(request: NextRequest) {
           )
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
-        [userMobStr, order_id, vehicle_no, mobile_no, frontside, backside, STATUS_SUCCESS, null, now, null],
+        [userMobStr, order_id, vehicle_no, mobile_no, frontside, backside, STATUS_PENDING, null, now, null],
       );
 
       // -------------------------------------------------
@@ -240,7 +240,7 @@ export async function POST(request: NextRequest) {
           )
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
-        [order_id, userMobStr, SERVICE_ID, SERVICE_NAME, STATUS_SUCCESS, oldBalance, charge, newBalance, "debit", null, now, ""],
+        [order_id, userMobStr, SERVICE_ID, SERVICE_NAME, STATUS_PENDING, oldBalance, charge, newBalance, "debit", null, now, ""],
       );
 
       // -------------------------------------------------
