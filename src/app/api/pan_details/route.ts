@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServiceFee } from "@/lib/actions";
-import { getUserDeatail, runTransaction } from "@/lib/auth";
+import { getUserDeatail, runTransaction, isServiceEnabled } from "@/lib/auth";
 import type { Retailer } from "@/lib/auth";
 import { generate7DigitNumber } from "@/lib/utils";
 import { STATUS_SUCCESS } from "@/lib/statuses";
@@ -52,6 +52,10 @@ export async function GET(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
+
+    // if (!isServiceEnabled(user, "pandetils")) {
+    //   return NextResponse.json({ message: "PAN Details service is not enabled for your account" }, { status: 403 });
+    // }
 
     // -------------------------------------------------
     // 3. Get API Key

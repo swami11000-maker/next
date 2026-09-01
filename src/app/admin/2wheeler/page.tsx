@@ -71,6 +71,11 @@ export default function AdminTwoWheelerPage() {
     };
   }, [load]);
 
+  useEffect(() => {
+    const interval = setInterval(load, 10000);
+    return () => clearInterval(interval);
+  }, [load]);
+
   async function changeStatus(row: TwoWheelerRequest, status: string) {
     try {
       await api(`/api/admin/2wheeler/${row.id}`, {

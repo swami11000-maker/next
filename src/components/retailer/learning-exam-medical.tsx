@@ -33,6 +33,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Calendar } from "../ui/calendar";
 import { ServiceChargeCard } from "../ui/service-charge-card";
 import { useDataProvider } from "@/hooks/useDataProvider";
+import { emitRetailerDataChanged } from "@/lib/data-events";
 
 const fieldClass = cn(
   "h-12 w-full rounded-xl",
@@ -312,6 +313,8 @@ export default function LearningExamMedical() {
         description: result?.message ?? "Your Learning Exam Medical request has been submitted successfully.",
         duration: 5000,
       });
+
+      emitRetailerDataChanged();
 
       /* =====================================================
          CLEAR FORM

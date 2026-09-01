@@ -52,6 +52,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useDataProvider } from "@/hooks/useDataProvider";
 import { ServiceChargeCard } from "../ui/service-charge-card";
 import { cn } from "@/lib/utils";
+import { emitRetailerDataChanged } from "@/lib/data-events";
 
 /* =========================================================
    ZOD SCHEMA
@@ -238,6 +239,7 @@ export default function VoterMobileLink() {
       });
       setError(null);
       setShowDialog(true);
+      emitRetailerDataChanged();
     } catch (err) {
       console.error("Voter Link Error:", err);
       setResult(null);

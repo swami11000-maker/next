@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServiceFee } from "@/lib/actions";
-import { getUserDeatail, runTransaction } from "@/lib/auth";
+import { getUserDeatail, runTransaction, isServiceEnabled } from "@/lib/auth";
 import type { Retailer } from "@/lib/auth";
 import { generate7DigitNumber } from "@/lib/utils";
 import { STATUS_SUCCESS } from "@/lib/statuses";
@@ -40,18 +40,12 @@ export async function GET(request: NextRequest) {
     const state = searchParams.get("state")?.trim();
 
     if (!dlno || !dob) {
-      return NextResponse.json(
-        { error: "Missing required parameters: dlno and dob" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Missing required parameters: dlno and dob" }, { status: 400 });
     }
 
     // Validate DOB format: DD-MM-YYYY
     if (!/^\d{2}-\d{2}-\d{4}$/.test(dob)) {
-      return NextResponse.json(
-        { error: "Invalid DOB format. Use DD-MM-YYYY" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid DOB format. Use DD-MM-YYYY" }, { status: 400 });
     }
 
     // -------------------------------------------------
@@ -61,11 +55,12 @@ export async function GET(request: NextRequest) {
     const user: Retailer | null = await getUserDeatail(request);
 
     if (!user) {
-      return NextResponse.json(
-        { message: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
+
+    // if (!isServiceEnabled(user, "dl_print")) {
+    //   return NextResponse.json({ message: "DL Print service is not enabled for your account" }, { status: 403 });
+    // }
 
     // -------------------------------------------------
     // 3. Get API Key
@@ -75,10 +70,7 @@ export async function GET(request: NextRequest) {
 
     if (!apiKey) {
       console.error("APIZONE_API_KEY is missing");
-      return NextResponse.json(
-        { error: "API key not configured" },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "API key not configured" }, { status: 500 });
     }
 
     // -------------------------------------------------
@@ -89,30 +81,21 @@ export async function GET(request: NextRequest) {
 
     if (!apiBaseUrl) {
       console.error("APIZONE_URL is missing");
-      return NextResponse.json(
-        { error: "API URL not configured" },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "API URL not configured" }, { status: 500 });
     }
 
     // -------------------------------------------------
     // 5. Get Retailer Balance + Service Fee
     // -------------------------------------------------
 
-    const { balance: oldBalance, fee: charge } = await getServiceFee(
-      user.id,
-      "dl_print_fee"
-    );
+    const { balance: oldBalance, fee: charge } = await getServiceFee(user.id, "dl_print_fee");
 
     // -------------------------------------------------
     // 6. Validate Charge
     // -------------------------------------------------
 
     if (!Number.isFinite(charge) || charge <= 0) {
-      return NextResponse.json(
-        { error: "Invalid DL print service fee" },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "Invalid DL print service fee" }, { status: 500 });
     }
 
     // -------------------------------------------------
@@ -126,7 +109,7 @@ export async function GET(request: NextRequest) {
           balance: oldBalance,
           required: charge,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -150,7 +133,7 @@ export async function GET(request: NextRequest) {
     // -------------------------------------------------
     // 9. Call External API
     // -------------------------------------------------
-
+// console.log(url)
     const response = await fetch(url.toString(), {
       method: "GET",
       cache: "no-store",
@@ -161,17 +144,14 @@ export async function GET(request: NextRequest) {
     // -------------------------------------------------
     // 10. External API HTTP Error
     // -------------------------------------------------
-// console.log('response',response)
+    // console.log('response',response)
     if (!response.ok) {
       console.error("DL Print API HTTP error:", response.status);
       return NextResponse.json(
         { error: `External API error: ${response.status}` },
         {
-          status:
-            response.status >= 400 && response.status < 500
-              ? response.status
-              : 502,
-        }
+          status: response.status >= 400 && response.status < 500 ? response.status : 502,
+        },
       );
     }
 
@@ -184,10 +164,7 @@ export async function GET(request: NextRequest) {
     try {
       data = await response.json();
     } catch {
-      return NextResponse.json(
-        { error: "Invalid response from DL API" },
-        { status: 502 }
-      );
+      return NextResponse.json({ error: "Invalid response from DL API" }, { status: 502 });
     }
 
     // -------------------------------------------------
@@ -202,7 +179,7 @@ export async function GET(request: NextRequest) {
         },
         {
           status: data.status === "404" ? 404 : 400,
-        }
+        },
       );
     }
 
@@ -255,20 +232,7 @@ export async function GET(request: NextRequest) {
           )
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
-        [
-          order_id,
-          userMobStr,
-          dlno,
-          SERVICE_NAME,
-          STATUS_SUCCESS,
-          oldBalance,
-          charge,
-          newBalance,
-          "debit",
-          data.pdf || null,
-          now,
-          data.application_no || "",
-        ]
+        [order_id, userMobStr, dlno, SERVICE_NAME, STATUS_SUCCESS, oldBalance, charge, newBalance, "debit", data.pdf || null, now, data.application_no || ""],
       );
 
       // ---------------------------------------------
@@ -292,18 +256,7 @@ export async function GET(request: NextRequest) {
           )
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
-        [
-          order_id,
-          userMobStr,
-          SERVICE_NAME,
-          oldBalance,
-          charge,
-          newBalance,
-          "debit",
-          STATUS_SUCCESS,
-          now,
-          data.application_no || "",
-        ]
+        [order_id, userMobStr, SERVICE_NAME, oldBalance, charge, newBalance, "debit", STATUS_SUCCESS, now, data.application_no || ""],
       );
 
       // ---------------------------------------------
@@ -319,7 +272,7 @@ export async function GET(request: NextRequest) {
             AND balance >= ?
           LIMIT 1
         `,
-        [charge, user.id, charge]
+        [charge, user.id, charge],
       );
 
       // ---------------------------------------------
@@ -343,6 +296,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(
       {
+        success: true,
         message: data.message || "DL PDF generated successfully",
         order_id: transactionResult.order_id,
         id: Number(transactionResult.order_id),
@@ -355,7 +309,7 @@ export async function GET(request: NextRequest) {
         pdf: data.pdf,
         data,
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error: any) {
     // -------------------------------------------------
@@ -369,10 +323,7 @@ export async function GET(request: NextRequest) {
     // -------------------------------------------------
 
     if (error?.message === "Insufficient balance") {
-      return NextResponse.json(
-        { message: "Insufficient balance" },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: "Insufficient balance" }, { status: 400 });
     }
 
     // -------------------------------------------------
@@ -380,19 +331,13 @@ export async function GET(request: NextRequest) {
     // -------------------------------------------------
 
     if (error?.message === "Retailer account not found") {
-      return NextResponse.json(
-        { message: "Retailer account not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ message: "Retailer account not found" }, { status: 404 });
     }
 
     // -------------------------------------------------
     // General Error
     // -------------------------------------------------
 
-    return NextResponse.json(
-      { error: error?.message || "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: error?.message || "Internal server error" }, { status: 500 });
   }
 }

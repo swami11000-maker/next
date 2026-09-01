@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
-import { getUserDeatail, runQuery, runTransaction } from "@/lib/auth";
+import { getUserDeatail, runQuery, runTransaction, isServiceEnabled } from "@/lib/auth";
 
 import { STATUS_PENDING, STATUS_SUCCESS } from "@/lib/statuses";
 import type { Retailer } from "@/lib/auth";
@@ -22,7 +22,6 @@ const submitSchema = z.object({
   backside: z.string().min(1, { message: "Back side photo is required" }),
 });
 
-const SERVICE_ID = "2wheeler_puc";
 const SERVICE_NAME = "2 Wheeler PUC";
 
 // -----------------------------------------------------
@@ -47,6 +46,13 @@ export async function POST(request: NextRequest) {
         },
       );
     }
+
+    // if (!isServiceEnabled(user, "2wheeler_puc")) {
+    //   return NextResponse.json(
+    //     { message: "2 Wheeler PUC service is not enabled for your account" },
+    //     { status: 403 }
+    //   );
+    // }
 
     // ---------------------------------------------------
     // 2. Parse Request Body
@@ -231,7 +237,7 @@ export async function POST(request: NextRequest) {
           )
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
-        [order_id, userMobStr, SERVICE_ID, SERVICE_NAME, STATUS_PENDING, oldBalance, charge, newBalance, "debit", null, now, ""],
+        [order_id, userMobStr, vehicle_no, SERVICE_NAME, STATUS_PENDING, oldBalance, charge, newBalance, "debit", null, now, ""],
       );
 
       // -------------------------------------------------

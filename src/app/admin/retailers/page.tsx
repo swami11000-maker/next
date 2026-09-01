@@ -20,6 +20,10 @@ const SERVICE_PAIRS: { service: keyof Retailer; fee: keyof Retailer; label: stri
   { service: "dl_print", fee: "dl_print_fee", label: "DL Print" },
   { service: "dl_mo_update", fee: "dl_mo_update_fee", label: "DL Mobile" },
   { service: "ll_exam", fee: "ll_exam_fee", label: "LL Exam" },
+  { service: "agri_pdf", fee: "agri_pdf_fee", label: "Agri PDF" },
+  { service: "rc_print", fee: "rc_print_fee", label: "RC Print" },
+  { service: "esharm_pdf", fee: "esharm_pdf_fee", label: "E-Sharm PDF" },
+  { service: "esharm_mob_update", fee: "esharm_mob_update_fee", label: "E-Sharm Mobile" },
 ];
 
 const PROFILE_FIELDS: { key: keyof Retailer; label: string; type: "text" | "number" }[] = [

@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Loader2, CheckCircle2, AlertCircle, ArrowRight, Car, Palette, CreditCard, FileText, Download, Eye, X, User, Hash } from "lucide-react";
+import { Search, Loader2, CheckCircle2, AlertCircle, ArrowRight, Car, Palette, CreditCard, FileText, Download, Eye, X, User, Hash, Wallet } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -22,6 +22,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { useDataProvider } from "@/hooks/useDataProvider";
 import { ServiceChargeCard } from "../ui/service-charge-card";
+import { emitRetailerDataChanged } from "@/lib/data-events";
 
 /* =========================================================
    ZOD SCHEMA
@@ -56,17 +57,19 @@ type FormValues = z.infer<typeof formSchema>;
 ========================================================= */
 
 type RcApiResponse = {
-  status: string | number;
+  success: boolean;
+  message?: string;
+  order_id?: string;
   rcno?: string;
   name?: string;
   application_no?: string;
-  message?: string;
   pdf?: string;
+  old_balance?: number;
+  new_balance?: number;
+  charge?: number;
+  status?: string | number;
 };
 
-/* =========================================================
-   PAGE
-========================================================= */
 
 export default function RcPdf() {
   const [isLoading, setIsLoading] = React.useState(false);
@@ -109,7 +112,7 @@ export default function RcPdf() {
         cardType: data.cardType,
       });
 
-      const apiUrl = `/api/vehicle/rc-pdf?${params.toString()}`;
+      const apiUrl = `/api/rc-print?${params.toString()}`;
 
       console.log("RC PDF API Request:", apiUrl);
 
@@ -142,6 +145,8 @@ export default function RcPdf() {
 
         // Show animated popup
         setShowPopup(true);
+
+        emitRetailerDataChanged();
 
         return;
       }
@@ -704,6 +709,94 @@ export default function RcPdf() {
                     </div>
 
                     <p className="font-bold text-sm break-all text-slate-900 dark:text-white">{result.application_no || "Not Available"}</p>
+                  </div>
+
+                  {/* ORDER ID */}
+
+                  <div
+                    className="
+                      rounded-2xl
+                      border
+                      border-slate-200
+                      dark:border-[#ff3800]/10
+                      bg-slate-50
+                      dark:bg-white/[0.03]
+                      p-4
+                    "
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <Hash className="h-4 w-4 text-[#ff3800]" />
+
+                      <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-gray-400">Order ID</span>
+                    </div>
+
+                    <p className="font-bold text-sm font-mono text-slate-900 dark:text-white">{result.order_id || "Not Available"}</p>
+                  </div>
+
+                  {/* CHARGE */}
+
+                  <div
+                    className="
+                      rounded-2xl
+                      border
+                      border-slate-200
+                      dark:border-[#ff3800]/10
+                      bg-slate-50
+                      dark:bg-white/[0.03]
+                      p-4
+                    "
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <CreditCard className="h-4 w-4 text-[#ff3800]" />
+
+                      <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-gray-400">Amount Charged</span>
+                    </div>
+
+                    <p className="font-bold text-sm text-slate-900 dark:text-white">₹{Number(result.charge || 0).toLocaleString("en-IN")}</p>
+                  </div>
+
+                  {/* OLD BALANCE */}
+
+                  <div
+                    className="
+                      rounded-2xl
+                      border
+                      border-slate-200
+                      dark:border-[#ff3800]/10
+                      bg-slate-50
+                      dark:bg-white/[0.03]
+                      p-4
+                    "
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <Wallet className="h-4 w-4 text-[#ff3800]" />
+
+                      <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-gray-400">Old Balance</span>
+                    </div>
+
+                    <p className="font-bold text-sm text-slate-900 dark:text-white">₹{Number(result.old_balance || 0).toLocaleString("en-IN")}</p>
+                  </div>
+
+                  {/* NEW BALANCE */}
+
+                  <div
+                    className="
+                      rounded-2xl
+                      border
+                      border-slate-200
+                      dark:border-[#ff3800]/10
+                      bg-slate-50
+                      dark:bg-white/[0.03]
+                      p-4
+                    "
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <Wallet className="h-4 w-4 text-[#ff3800]" />
+
+                      <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-gray-400">New Balance</span>
+                    </div>
+
+                    <p className="font-bold text-sm text-slate-900 dark:text-white">₹{Number(result.new_balance || 0).toLocaleString("en-IN")}</p>
                   </div>
                 </div>
               </div>

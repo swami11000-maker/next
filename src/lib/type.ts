@@ -34,15 +34,23 @@ export interface RetailerData {
   dl_print: string;
   dl_print_fee: number;
 
-  rc_print:string;
-  rc_print_fee:number;
+  rc_print: string;
+  rc_print_fee: number;
+
   dl_mo_update: string;
   dl_mo_update_fee: number;
 
   ll_exam: string;
   ll_exam_fee: number;
-  esharm_pdf ? : string;
-  esharm_pdf_fee?:number;
-  esharm_mob_update?:string;
-  esharm_mob_update_fee?:number;
+
+  agri_pdf: string;
+  agri_pdf_fee: number;
+
+  esharm_pdf: string;
+  esharm_pdf_fee: number;
+
+  esharm_mob_update: string;
+  esharm_mob_update_fee: number;
+
+  [key: string]: unknown;
 }

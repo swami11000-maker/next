@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { runQuery, runMutation, SqlParam } from "@/lib/auth";
-import { LL_MEDICAL_SAFE_COLUMNS } from "@/lib/auth";
+import { runQuery, runMutation, runTransaction, SqlParam, LL_MEDICAL_SAFE_COLUMNS } from "@/lib/auth";
+import type { LlMedicalRequest } from "@/lib/auth";
 import { STATUS_REFUND } from "@/lib/statuses";
 
 const updateSchema = z.object({
@@ -11,7 +11,6 @@ const updateSchema = z.object({
 });
 
 const RETAILER_SELECT = LL_MEDICAL_SAFE_COLUMNS.join(", ");
-const SERVICE_ID = "ll_medical";
 const SERVICE_NAME = "Learning Exam Medical";
 
 export async function GET(
@@ -20,7 +19,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const rows = await runQuery<any[]>(
+    const rows = await runQuery<LlMedicalRequest[]>(
       `SELECT ${RETAILER_SELECT} FROM \`ll_medical\` WHERE id = ? LIMIT 1`,
       [Number(id)]
     );
@@ -49,7 +48,7 @@ export async function PUT(
     }
 
     const existing = await runQuery<any[]>(
-      "SELECT id, user_mob, charge, status FROM `ll_medical` WHERE id = ? LIMIT 1",
+      "SELECT id, order_id, user_mob, status FROM `ll_medical` WHERE id = ? LIMIT 1",
       [Number(id)]
     );
     if (existing.length === 0) {
@@ -57,6 +56,9 @@ export async function PUT(
     }
 
     const requestData = existing[0];
+    const orderId = requestData.order_id;
+    const userMob = requestData.user_mob;
+    const currentStatus = requestData.status;
     const now = new Date().toISOString().slice(0, 19).replace("T", " ");
 
     const updates: string[] = [];
@@ -67,57 +69,6 @@ export async function PUT(
       values.push(result.data.status);
       updates.push("`resposive_date_time` = ?");
       values.push(now);
-
-      if (result.data.status === STATUS_REFUND && requestData.status !== STATUS_REFUND) {
-        const charge = Number(requestData.charge ?? 0);
-
-        if (charge > 0) {
-          const retailerRows = await runQuery<{ id: number; balance: number }[]>(
-            "SELECT id, balance FROM retailer WHERE id = ? LIMIT 1 FOR UPDATE",
-            [Number(requestData.user_mob)]
-          );
-
-          if (retailerRows.length > 0) {
-            const newBalance = Number(retailerRows[0].balance ?? 0) + charge;
-
-            await runMutation(
-              "UPDATE retailer SET balance = ? WHERE id = ? LIMIT 1",
-              [newBalance, retailerRows[0].id]
-            );
-
-            await runMutation(
-              `
-                INSERT INTO \`transitions\`
-                (
-                  \`order_id\`,
-                  \`user_mob\`,
-                  \`service_name\`,
-                  \`old_balance\`,
-                  \`charge\`,
-                  \`new_balance\`,
-                  \`tranfer_type\`,
-                  \`status\`,
-                  \`date_time\`,
-                  \`remark\`
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-              `,
-              [
-                String(id),
-                String(requestData.user_mob),
-                SERVICE_NAME,
-                Number(retailerRows[0].balance ?? 0),
-                charge,
-                newBalance,
-                "credit",
-                STATUS_REFUND,
-                now,
-                `Refund for ll_medical request #${id}`,
-              ]
-            );
-          }
-        }
-      }
     }
 
     if (result.data.admin_upload_doc !== undefined) {
@@ -136,12 +87,92 @@ export async function PUT(
       return NextResponse.json({ message: "No fields to update" }, { status: 400 });
     }
 
-    values.push(Number(id));
+    const newStatus = result.data.status;
+    const adminUploadDoc = result.data.admin_upload_doc;
 
-    const sql = `UPDATE \`ll_medical\` SET ${updates.join(", ")} WHERE id = ? LIMIT 1`;
-    await runMutation(sql, values);
+    await runTransaction(async (conn) => {
+      const updateValues = [...values, Number(id)];
+      const sql = `UPDATE \`ll_medical\` SET ${updates.join(", ")} WHERE id = ? LIMIT 1`;
+      await conn.query(sql, updateValues);
 
-    const updated = await runQuery<any[]>(
+      if (newStatus !== undefined || adminUploadDoc !== undefined) {
+        const whUpdates: string[] = [];
+        const whValues: SqlParam[] = [];
+
+        if (newStatus !== undefined) {
+          whUpdates.push("`status` = ?");
+          whValues.push(newStatus);
+        }
+
+        if (adminUploadDoc !== undefined) {
+          whUpdates.push("`document` = ?");
+          whValues.push(adminUploadDoc || null);
+        }
+
+        whUpdates.push("`date_time` = ?");
+        whValues.push(now);
+
+        await conn.query(
+          `UPDATE \`workhistory\` SET ${whUpdates.join(", ")} WHERE \`order_id\` = ?`,
+          [...whValues, orderId]
+        );
+      }
+
+      if (newStatus === STATUS_REFUND && currentStatus !== STATUS_REFUND) {
+        const charge = Number((await runQuery<any[]>("SELECT charge FROM `ll_medical` WHERE id = ? LIMIT 1", [Number(id)]))[0]?.charge ?? 0);
+
+        if (charge > 0) {
+          const retailerRows = await runQuery<{ id: number; balance: number }[]>(
+            "SELECT id, balance FROM retailer WHERE id = ? LIMIT 1 FOR UPDATE",
+            [Number(userMob)]
+          );
+
+          if (retailerRows.length > 0) {
+            const retailer = retailerRows[0];
+            const currentBalance = Number(retailer.balance);
+            const newBalance = currentBalance + charge;
+
+            await conn.query(
+              "UPDATE retailer SET balance = ? WHERE id = ? LIMIT 1",
+              [newBalance, retailer.id]
+            );
+
+            await conn.query(
+              `
+              INSERT INTO \`transitions\`
+              (
+                \`order_id\`,
+                \`user_mob\`,
+                \`service_name\`,
+                \`old_balance\`,
+                \`charge\`,
+                \`new_balance\`,
+                \`tranfer_type\`,
+                \`status\`,
+                \`date_time\`,
+                \`remark\`
+              )
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              `,
+              [
+                orderId,
+                userMob,
+                SERVICE_NAME,
+                currentBalance,
+                charge,
+                newBalance,
+                "credit",
+                STATUS_REFUND,
+                now,
+                `Refund for ll_medical request #${id}`,
+              ]
+            );
+          }
+        }
+      }
+    });
+
+    const updated = await runQuery<LlMedicalRequest[]>(
       `SELECT ${RETAILER_SELECT} FROM \`ll_medical\` WHERE id = ? LIMIT 1`,
       [Number(id)]
     );

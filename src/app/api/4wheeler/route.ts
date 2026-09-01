@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
-import { getUserDeatail, runQuery, runTransaction } from "@/lib/auth";
+import { getUserDeatail, runQuery, runTransaction, isServiceEnabled } from "@/lib/auth";
 
 import type { Retailer } from "@/lib/auth";
 import { STATUS_PENDING, STATUS_SUCCESS } from "@/lib/statuses";
@@ -58,10 +58,6 @@ export async function POST(request: NextRequest) {
         },
       );
     }
-
-    // ---------------------------------------------------
-    // 2. Parse Request Body
-    // ---------------------------------------------------
 
     const body = await request.json();
 

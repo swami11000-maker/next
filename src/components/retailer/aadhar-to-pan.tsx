@@ -46,6 +46,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import PanResultDialog from "../result";
 import { useDataProvider } from "@/hooks/useDataProvider";
 import { ServiceChargeCard } from "../ui/service-charge-card";
+import { emitRetailerDataChanged } from "@/lib/data-events";
 
 /* =========================================================
    ZOD SCHEMA — AADHAAR (12 digits)
@@ -176,6 +177,7 @@ export default function PanFind() {
       setResult(panData);
       setError(null);
       setShowDialog(true);
+      emitRetailerDataChanged();
     } catch (err) {
       console.error("Aadhaar-to-PAN Search Error:", err);
       setResult(null);

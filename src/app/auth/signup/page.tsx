@@ -51,13 +51,13 @@ export default function SignupPage() {
       });
 
       const result = await response.json();
-
+console.log(response)
       if (!response.ok) {
         throw new Error(result.message || "Signup failed. Please try again.");
       }
-
-      // Redirect to login or dashboard
-      router.push("/login?registered=true");
+      if (response.status === 201) {
+        router.push("/auth/self-activation");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     } finally {

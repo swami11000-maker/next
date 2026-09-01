@@ -19,6 +19,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 import { useDataProvider } from "@/hooks/useDataProvider";
 import { ServiceChargeCard } from "../ui/service-charge-card";
+import { emitRetailerDataChanged } from "@/lib/data-events";
 import { cn } from "@/lib/utils";
 
 // =========================================================
@@ -181,6 +182,7 @@ export default function EsharmPdfPage() {
       // SUCCESS
       setResult(apiResult);
       setShowDialog(true);
+      emitRetailerDataChanged();
     } catch (err) {
       console.error("E-Sharm Error:", err);
 

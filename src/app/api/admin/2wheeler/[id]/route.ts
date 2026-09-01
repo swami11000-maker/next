@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { runQuery, runMutation, SqlParam, TWOWHEELER_SAFE_COLUMNS } from "@/lib/auth";
+import { runQuery, runMutation, runTransaction, SqlParam, TWOWHEELER_SAFE_COLUMNS } from "@/lib/auth";
 import type { TwoWheelerRequest, TwoWheelerStatus } from "@/lib/auth";
+import { STATUS_REFUND, STATUS_SUCCESS } from "@/lib/statuses";
 
 const updateSchema = z.object({
   status: z.enum(["panding", "refund", "success"]).optional(),
@@ -36,10 +37,19 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ message: result.error.issues[0].message }, { status: 400 });
     }
 
-    const existing = await runQuery<{ id: number }[]>("SELECT id FROM `2wheeler` WHERE id = ? LIMIT 1", [Number(id)]);
+    const existing = await runQuery<any[]>(
+      "SELECT id, order_id, user_mob, status FROM `2wheeler` WHERE id = ? LIMIT 1",
+      [Number(id)]
+    );
+    console.log("existing", existing);
     if (existing.length === 0) {
       return NextResponse.json({ message: "Request not found" }, { status: 404 });
     }
+
+    const requestData = existing[0];
+    const orderId = requestData.order_id;
+    const userMob = requestData.user_mob;
+    const currentStatus = requestData.status;
 
     const updates: string[] = [];
     const values: SqlParam[] = [];
@@ -67,10 +77,96 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ message: "No fields to update" }, { status: 400 });
     }
 
-    values.push(Number(id));
+    const newStatus = result.data.status;
+    const adminUploadDoc = result.data.admin_upload_doc;
+    const now = new Date().toISOString().slice(0, 19).replace("T", " ");
 
-    const sql = `UPDATE \`2wheeler\` SET ${updates.join(", ")} WHERE id = ? LIMIT 1`;
-    await runMutation(sql, values);
+    await runTransaction(async (conn) => {
+      const updateValues = [...values, Number(id)];
+      const sql = `UPDATE \`2wheeler\` SET ${updates.join(", ")} WHERE id = ? LIMIT 1`;
+      await conn.query(sql, updateValues);
+
+      if (newStatus !== undefined || adminUploadDoc !== undefined) {
+        const whUpdates: string[] = [];
+        const whValues: SqlParam[] = [];
+
+        if (newStatus !== undefined) {
+          whUpdates.push("`status` = ?");
+          whValues.push(newStatus);
+        }
+
+        if (adminUploadDoc !== undefined) {
+          whUpdates.push("`document` = ?");
+          whValues.push(adminUploadDoc || null);
+        }
+
+        whUpdates.push("`date_time` = ?");
+        whValues.push(now);
+
+        await conn.query(
+          `UPDATE \`workhistory\` SET ${whUpdates.join(", ")} WHERE \`order_id\` = ?`,
+          [...whValues, orderId]
+        );
+      }
+
+      if (newStatus === STATUS_REFUND && currentStatus !== STATUS_REFUND) {
+        const workHistoryRows = await conn.query<any>(
+          'SELECT charge FROM `workhistory` WHERE `order_id` = ? LIMIT 1',
+          [orderId]
+        ) as any[];
+
+        if (workHistoryRows.length > 0) {
+          const charge = Number((workHistoryRows[0] as any).charge);
+
+          const retailerRows = await conn.query<any>(
+            'SELECT id, balance FROM `retailer` WHERE `mobile` = ? LIMIT 1 FOR UPDATE',
+            [userMob]
+          ) as any[];
+
+          if (retailerRows.length > 0) {
+            const retailer = retailerRows[0] as any;
+            const currentBalance = Number(retailer.balance);
+            const newBalance = currentBalance + charge;
+
+            await conn.query(
+              'UPDATE `retailer` SET `balance` = ? WHERE `id` = ?',
+              [newBalance, retailer.id]
+            );
+
+            await conn.query(
+              `
+              INSERT INTO \`transitions\`
+              (
+                \`order_id\`,
+                \`user_mob\`,
+                \`service_name\`,
+                \`old_balance\`,
+                \`charge\`,
+                \`new_balance\`,
+                \`tranfer_type\`,
+                \`status\`,
+                \`date_time\`,
+                \`remark\`
+              )
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              `,
+              [
+                orderId,
+                userMob,
+                "2 Wheeler PUC",
+                currentBalance,
+                charge,
+                newBalance,
+                "credit",
+                STATUS_REFUND,
+                now,
+                "Refund for order " + orderId,
+              ]
+            );
+          }
+        }
+      }
+    });
 
     const updated = await runQuery<TwoWheelerRequest[]>(`SELECT ${RETAILER_SELECT} FROM \`2wheeler\` WHERE id = ? LIMIT 1`, [Number(id)]);
 

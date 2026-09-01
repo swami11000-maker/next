@@ -35,10 +35,24 @@ const retailerSchema = z.object({
   dl_mo_update_fee: z.number().int().min(0).optional(),
   ll_exam: z.enum(["yes", "no"]).optional(),
   ll_exam_fee: z.number().int().min(0).optional(),
+  agri_pdf: z.enum(["yes", "no", ""]).optional(),
+  agri_pdf_fee: z.number().int().min(0).optional(),
+  rc_print: z.enum(["yes", "no", ""]).optional(),
+  rc_print_fee: z.number().int().min(0).optional(),
+  esharm_pdf: z.enum(["yes", "no", ""]).optional(),
+  esharm_pdf_fee: z.number().int().min(0).optional(),
+  esharm_mob_update: z.enum(["yes", "no", ""]).optional(),
+  esharm_mob_update_fee: z.number().int().min(0).optional(),
 });
 
 const ALL_COLUMNS = [
-  "name", "mobile", "email", "password", "status", "balance", "usertype"
+  "name", "mobile", "email", "password", "status", "balance", "usertype",
+  "2wheeler_puc", "2wheeler_fee", "4wheeler_puc", "4wheeler_fee",
+  "voter_mobile_link", "voter_mobile_link_fee", "rc_mobile_update", "rc_mo_update_fee",
+  "ll_medical", "ll_medical_fee", "pan_find", "pan_find_fee", "pandetils", "pandetils_fee",
+  "dl_find", "dl_find_fee", "dl_print", "dl_print_fee", "dl_mo_update", "dl_mo_update_fee",
+  "ll_exam", "ll_exam_fee", "agri_pdf", "agri_pdf_fee", "rc_print", "rc_print_fee",
+  "esharm_pdf", "esharm_pdf_fee", "esharm_mob_update", "esharm_mob_update_fee",
 ];
 
 const RETAILER_SELECT = RETAILER_SAFE_COLUMNS.join(", ");

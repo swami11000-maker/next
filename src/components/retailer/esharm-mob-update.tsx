@@ -20,6 +20,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useDataProvider } from "@/hooks/useDataProvider";
 import { ServiceChargeCard } from "../ui/service-charge-card";
 import { cn } from "@/lib/utils";
+import { emitRetailerDataChanged } from "@/lib/data-events";
 
 /* =========================================================
    ZOD SCHEMA
@@ -168,6 +169,7 @@ export default function EsharmMobileUpdatePage() {
 
       setResult(apiResult);
       setShowDialog(true);
+      emitRetailerDataChanged();
     } catch (err) {
       console.error("E-Sharm Mobile Update Error:", err);
       setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");

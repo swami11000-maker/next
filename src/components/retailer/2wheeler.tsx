@@ -20,6 +20,7 @@ import { useDataProvider } from "@/hooks/useDataProvider";
 import { ServiceChargeCard } from "../ui/service-charge-card";
 import { toast } from "../ui/toast";
 import { ImageUpload } from "../ui/imageupload";
+import { emitRetailerDataChanged } from "@/lib/data-events";
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -137,6 +138,8 @@ export default function VehicleDocumentUpload() {
         description: result?.message || "Your vehicle documents have been uploaded successfully.",
         duration: 5000,
       });
+
+      emitRetailerDataChanged();
 
       form.reset({
         mobileNumber: "",

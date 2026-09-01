@@ -30,7 +30,7 @@ async function Layout({ children }: { children: React.ReactNode }) {
               </div>
             </div>
             {/* Table */}
-            <div className="w-full px-3 pb-4 sm:px-4 md:px-6 bg-amber-200 rounded-4xl mt-2">
+            <div className="w-full px-3 pb-4 sm:px-4 md:px-6 bg-gray-600 rounded-4xl mt-2">
               <Ltable />
             </div>
           </main>

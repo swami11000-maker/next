@@ -23,6 +23,7 @@ import { Calendar } from "../ui/calendar";
 import { toast } from "../ui/toast";
 import { ServiceChargeCard } from "../ui/service-charge-card";
 import { useDataProvider } from "@/hooks/useDataProvider";
+import { emitRetailerDataChanged } from "@/lib/data-events";
 function formatDateForForm(date: Date): string {
   return format(date, "dd-MM-yyyy");
 }
@@ -234,6 +235,9 @@ export default function LLExamRequest() {
         description: result?.message || "Your vehicle documents have been uploaded successfully.",
         duration: 5000,
       });
+
+      emitRetailerDataChanged();
+
     } catch (err) {
       toast.error("Something went wrong", {
         description: err instanceof Error ? err.message : "Unable to complete the request. Please try again.",

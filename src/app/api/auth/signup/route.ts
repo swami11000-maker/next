@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { hashPassword, runQuery, runMutation, Retailer } from "@/lib/auth";
+import { runQuery, runMutation, signToken, setAuthCookie, Retailer } from "@/lib/auth";
 
 const signupSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters" }),
@@ -34,16 +34,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // const hashed = await hashPassword(password);
 
     const insertResult = await runMutation(
       "INSERT INTO retailer (name, mobile, email, password, status, balance, usertype) VALUES (?, ?, ?, ?, 'unpaid', 0, 'retailer')",
-      [name, mobile, email, password]
+      [name, mobile, email ,password]
     );
 
     const userId = insertResult.insertId ?? null;
 
-    return NextResponse.json({ message: "Account created successfully", userId }, { status: 201 });
+    const token = signToken({ id: userId, mobile, email, usertype: "retailer" });
+  const response = NextResponse.json(
+  {
+    message: "Account created successfully",
+  },
+  {
+    status: 201,
+  }
+);
+
+setAuthCookie(response, token);
+
+return response;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Internal server error";
     console.error("Signup error:", error);

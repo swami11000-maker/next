@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { comparePassword, runQuery, signToken, setAuthCookie, Retailer } from "@/lib/auth";
+import { runQuery, signToken, setAuthCookie, Retailer } from "@/lib/auth";
 
 const loginSchema = z
   .object({
@@ -35,6 +35,10 @@ export async function POST(request: NextRequest) {
     const valid = password === user.password;
     if (!valid) {
       return NextResponse.json({ message: "Invalid credentials" }, { status: 401 });
+    }
+
+    if (user.status !== "active") {
+      return NextResponse.json({ message: "Please activate your account first" }, { status: 403 });
     }
 
     const token = signToken({

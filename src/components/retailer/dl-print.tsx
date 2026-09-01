@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Loader2, AlertCircle, ArrowRight, RefreshCcw, CreditCard, CalendarDays, Palette, MapPin, CheckCircle2, FileDown, Receipt, BadgeCheck, FileText } from "lucide-react";
+import { Search, Loader2, AlertCircle, ArrowRight, RefreshCcw, CreditCard, CalendarDays, Palette, MapPin, CheckCircle2, FileDown, Receipt, BadgeCheck, FileText, Eye, Wallet } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -22,6 +22,7 @@ import { useDataProvider } from "@/hooks/useDataProvider";
 import { ServiceChargeCard } from "../ui/service-charge-card";
 import { cn } from "@/lib/utils";
 import { indianStates } from "@/lib/constate";
+import { emitRetailerDataChanged } from "@/lib/data-events";
 
 /* =========================================================
    ZOD SCHEMA
@@ -162,6 +163,7 @@ export default function DlPrintPage() {
       setResult(apiResult);
       setError(null);
       setShowDialog(true);
+      emitRetailerDataChanged();
     } catch (err) {
       console.error("DL Print Error:", err);
       setResult(null);
@@ -515,6 +517,8 @@ export default function DlPrintPage() {
                   <DetailItem icon={BadgeCheck} label="Application No" value={result?.application_no || result?.data?.application_no} mono />
                   <DetailItem icon={Receipt} label="Order ID" value={result?.order_id} mono />
                   {result?.charge !== undefined && <DetailItem icon={CreditCard} label="Amount Charged" value={`₹${result.charge}`} />}
+                  {result?.old_balance !== undefined && <DetailItem icon={Wallet} label="Old Balance" value={`₹${Number(result.old_balance).toLocaleString("en-IN")}`} />}
+                  {result?.new_balance !== undefined && <DetailItem icon={Wallet} label="New Balance" value={`₹${Number(result.new_balance).toLocaleString("en-IN")}`} />}
                 </div>
               </div>
             </div>
@@ -527,6 +531,13 @@ export default function DlPrintPage() {
                 <Button type="button" variant="outline" onClick={() => setShowDialog(false)} className="h-11 flex-1 rounded-xl border-black text-black hover:bg-gray-100">
                   Close
                 </Button>
+
+                {result?.pdf && (
+                  <Button type="button" variant="outline" onClick={() => window.open(result.pdf, "_blank", "noopener,noreferrer")} className="h-11 flex-1 rounded-xl border-orange-600 text-orange-600 hover:bg-orange-600/10">
+                    <Eye className="mr-2 h-4 w-4" />
+                    View PDF
+                  </Button>
+                )}
 
                 <Button type="button" onClick={downloadPdf} className="h-11 flex-1 rounded-xl bg-orange-600 text-white hover:bg-orange-700 shadow-lg shadow-orange-600/20">
                   <FileDown className="mr-2 h-4 w-4" />

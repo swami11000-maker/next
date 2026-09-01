@@ -33,3 +33,4 @@ export async function getServiceFee(userId: number | string, feeColumn: string, 
     fee: Number(feeRows[0].fee ?? defaultFee),
   };
 }
+

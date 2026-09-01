@@ -36,9 +36,20 @@ export interface Retailer {
   dl_mo_update_fee: number;
   ll_exam: string;
   ll_exam_fee: number;
-  agri_pdf_fee?: number;
-  agri_pdf?: string;
+  agri_pdf: string;
+  agri_pdf_fee: number;
+  rc_print: string;
+  rc_print_fee: number;
+  esharm_pdf: string;
+  esharm_pdf_fee: number;
+  esharm_mob_update: string;
+  esharm_mob_update_fee: number;
   fees?: string;
+}
+
+export function isServiceEnabled(retailer: Retailer | null | undefined, serviceFlag: keyof Retailer): boolean {
+  if (!retailer) return false;
+  return retailer[serviceFlag] === "yes";
 }
 
 export interface JwtPayload {
@@ -49,6 +60,23 @@ export interface JwtPayload {
 }
 
 export type SqlParam = string | number | boolean | null | Date | object;
+
+export interface GatewayTransaction {
+  id: number;
+  order_id: string;
+  user_id: number;
+  user_mob: string;
+  amount: number;
+  payment_type: "activation" | "add_money";
+  status: "pending" | "completed" | "failed" | "cancelled";
+  txn_status: string | null;
+  utr: string | null;
+  payment_url: string | null;
+  remark1: string | null;
+  remark2: string | null;
+  date_time: string;
+  updated_at: string | null;
+}
 
 const SALT_ROUNDS = 10;
 
@@ -85,8 +113,6 @@ export const RETAILER_SAFE_COLUMNS = [
   "pandetils",
   "pandetils_fee",
   "dl_find",
-  "rc_print",
-  "rc_print_fee",
   "dl_find_fee",
   "dl_print",
   "`dl_print_fee`",
@@ -94,6 +120,10 @@ export const RETAILER_SAFE_COLUMNS = [
   "`dl_mo_update_fee`",
   "`ll_exam`",
   "`ll_exam_fee`",
+  "agri_pdf",
+  "agri_pdf_fee",
+  "rc_print",
+  "rc_print_fee",
   "esharm_pdf",
   "esharm_pdf_fee",
   "esharm_mob_update",
@@ -203,7 +233,7 @@ export async function getUserFromRequest(request: NextRequest): Promise<Retailer
 
       FROM retailer
       WHERE id = ?
-        AND status IN ('active', 'unpaid')
+        AND status = 'active'
       LIMIT 1
       `,
       [payload.id],
@@ -258,6 +288,36 @@ export interface TwoWheelerRequest {
 }
 
 export const TWOWHEELER_SAFE_COLUMNS = [
+  "id",
+  "`user_mob`",
+  "`order_id`",
+  "`vehicle_no`",
+  "`mobile_no`",
+  "frontside",
+  "backside",
+  "status",
+  "`admin_upload_doc`",
+  "`apply_date_time`",
+  "`resposive_date_time`",
+];
+
+export type FourWheelerStatus = "panding" | "refund" | "success";
+
+export interface FourWheelerRequest {
+  id: number;
+  user_mob: number | null;
+  order_id: number;
+  vehicle_no: string;
+  mobile_no: string;
+  frontside: string;
+  backside: string;
+  status: FourWheelerStatus;
+  admin_upload_doc: string | null;
+  apply_date_time: string | null;
+  resposive_date_time: string | null;
+}
+
+export const FOURWHEELER_SAFE_COLUMNS = [
   "id",
   "`user_mob`",
   "`order_id`",

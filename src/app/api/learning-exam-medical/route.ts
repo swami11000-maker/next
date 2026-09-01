@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
-import { getUserDeatail, runQuery, runTransaction } from "@/lib/auth";
+import { getUserDeatail, runQuery, runTransaction, isServiceEnabled } from "@/lib/auth";
 
 import type { Retailer } from "@/lib/auth";
 import { STATUS_SUCCESS } from "@/lib/statuses";
@@ -48,6 +48,13 @@ export async function POST(request: NextRequest) {
         },
       );
     }
+
+    // if (!isServiceEnabled(user, "ll_medical")) {
+    //   return NextResponse.json(
+    //     { message: "Learning Exam Medical service is not enabled for your account" },
+    //     { status: 403 }
+    //   );
+    // }
 
     // ---------------------------------------------------
     // 2. Parse Request Body

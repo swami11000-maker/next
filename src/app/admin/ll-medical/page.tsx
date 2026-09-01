@@ -71,6 +71,11 @@ export default function AdminLlMedicalPage() {
     };
   }, [load]);
 
+  useEffect(() => {
+    const interval = setInterval(load, 10000);
+    return () => clearInterval(interval);
+  }, [load]);
+
   async function changeStatus(row: LlMedicalRequest, status: string) {
     try {
       await api(`/api/admin/ll-medical/${row.id}`, {

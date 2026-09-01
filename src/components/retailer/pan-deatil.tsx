@@ -37,6 +37,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import PanResultDialog from "../result";
 import { useDataProvider } from "@/hooks/useDataProvider";
 import { ServiceChargeCard } from "../ui/service-charge-card";
+import { emitRetailerDataChanged } from "@/lib/data-events";
 
 /* =========================================================
    ZOD SCHEMA
@@ -168,6 +169,7 @@ export default function PanDetails() {
       setResult(panData);
       setError(null);
       setShowPopup(true);
+      emitRetailerDataChanged();
     } catch (err) {
       console.error("PAN Search Error:", err);
       setResult(null);

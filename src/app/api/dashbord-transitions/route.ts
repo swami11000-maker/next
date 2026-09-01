@@ -1,5 +1,4 @@
-import { getUserDeatail, Retailer } from "@/lib/auth";
-import { pool } from "@/lib/server";
+import { getUserDeatail, runQuery, Retailer } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
@@ -17,25 +16,46 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const sql = `
-      SELECT 
-        service_name,
-        old_balance,
-        charge,
-        new_balance,
-        tranfer_type
-      FROM transitions
-      WHERE user_mob = ?
-      ORDER BY date_time DESC
-    `;
+    const [transitionRows, retailerRows] = await Promise.all([
+      runQuery<any[]>(
+        `
+          SELECT
+            id,
+            order_id,
+            user_mob,
+            service_name,
+            old_balance,
+            charge,
+            new_balance,
+            tranfer_type,
+            status,
+            date_time,
+            remark
+          FROM transitions
+          WHERE user_mob = ?
+          ORDER BY date_time DESC
+        `,
+        [user.mobile],
+      ),
+      runQuery<any[]>(
+        `
+          SELECT balance
+          FROM retailer
+          WHERE id = ?
+          LIMIT 1
+        `,
+        [user.id],
+      ),
+    ]);
 
-    const [rows] = await pool.query(sql, [user.mobile]);
+    const currentBalance = retailerRows.length > 0 ? Number(retailerRows[0].balance ?? 0) : 0;
 
     return NextResponse.json(
       {
         success: true,
         message: "Transactions fetched successfully",
-        data: rows,
+        data: transitionRows,
+        current_balance: currentBalance,
       },
       {
         status: 200,
