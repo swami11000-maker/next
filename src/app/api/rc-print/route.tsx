@@ -28,9 +28,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    // if (!isServiceEnabled(user, "rc_print")) {
-    //   return NextResponse.json({ message: "RC Print service is not enabled for your account" }, { status: 403 });
-    // }
+    if (!isServiceEnabled(user, "rc_print")) {
+      return NextResponse.json({ message: "RC Print service is not enabled for your account" }, { status: 403 });
+    }
 
     const feeRow = await runQuery<{ rc_print_fee: number; balance: number }[]>(`SELECT \`rc_print_fee\` AS fee, balance FROM retailer WHERE id = ? LIMIT 1`, [user.id]);
 

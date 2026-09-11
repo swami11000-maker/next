@@ -14,6 +14,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { RETAILER_DATA_CHANGED } from "@/lib/data-events";
+import { apiFetch } from "@/lib/api-client";
 
 interface WorkHistory {
   id: number;
@@ -43,7 +44,7 @@ export const Ltable = () => {
       setLoading(true);
       setError("");
 
-      const response = await fetch(API_URL, {
+      const response = await apiFetch(API_URL, {
         method: "GET",
         cache: "no-store",
       });

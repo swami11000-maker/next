@@ -6,7 +6,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Loader2, AlertCircle, ArrowRight, RefreshCcw, CreditCard, CheckCircle2, FileDown, Receipt, BadgeCheck, User, MapPin, Database, IndianRupee, FileText } from "lucide-react";
+import {
+  Search, Loader2, AlertCircle, ArrowRight, RefreshCcw, CreditCard,
+  CheckCircle2, FileDown, Receipt, BadgeCheck, User, MapPin, Database,
+  IndianRupee, FileText, PaletteIcon, Server, Info, Hash, FileWarning,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -22,6 +26,8 @@ import { useDataProvider } from "@/hooks/useDataProvider";
 import { ServiceChargeCard } from "../ui/service-charge-card";
 import { cn } from "@/lib/utils";
 import { emitRetailerDataChanged } from "@/lib/data-events";
+import { indianStates } from "@/lib/constate";
+import { apiFetch } from "@/lib/api-client";
 
 /* =========================================================
    ZOD SCHEMA
@@ -31,35 +37,34 @@ const formSchema = z.object({
   aadhaar: z
     .string()
     .length(12, { message: "Aadhaar number must be exactly 12 digits" })
-    .regex(/^\d{12}$/, {
-      message: "Enter a valid 12-digit Aadhaar number",
-    }),
+    .regex(/^\d{12}$/, { message: "Enter a valid 12-digit Aadhaar number" }),
   state: z
     .string()
     .length(2, { message: "Select a valid state" })
-    .regex(/^[A-Z]{2}$/, {
-      message: "Invalid state code",
-    }),
+    .regex(/^[A-Z]{2}$/, { message: "Invalid state code" }),
+  server: z.string(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
 
 /* =========================================================
-   API RESPONSE TYPES
+   TYPES
 ========================================================= */
 
-interface FarmerData {
-  status: string;
+interface FarmerInnerData {
+  status?: string | number;
   message?: string;
   data_mode?: string;
   source?: string;
   billable?: string;
   aadhaar?: string;
   name?: string;
+  fullname?: string;
   application_no?: string;
   amount?: string;
   balance_left?: string;
   pdf?: string;
+  sampleCode?: string;
 }
 
 interface ApiWrapper {
@@ -68,59 +73,119 @@ interface ApiWrapper {
   charge?: number;
   old_balance?: number;
   new_balance?: number;
-  aadhaar?: string;
   state?: string;
   name?: string;
+  fullname?: string;
+  aadhaar?: string;
   application_no?: string;
   billable?: string;
   amount?: string;
   pdf?: string;
-  data?: FarmerData;
+  sampleCode?: string;
+  status?: string | number;
   error?: string;
+  api_mode?: string;
+  mode?: string;
+  data?: FarmerInnerData;
 }
 
-/* =========================================================
-   STATE OPTIONS
-========================================================= */
-
-const STATE_OPTIONS = [
-  { value: "BR", label: "Bihar (BR)" },
-  { value: "UP", label: "Uttar Pradesh (UP)" },
-  { value: "DL", label: "Delhi (DL)" },
-  { value: "MH", label: "Maharashtra (MH)" },
-  { value: "RJ", label: "Rajasthan (RJ)" },
-  { value: "MP", label: "Madhya Pradesh (MP)" },
-  { value: "WB", label: "West Bengal (WB)" },
-  { value: "TN", label: "Tamil Nadu (TN)" },
-  { value: "KA", label: "Karnataka (KA)" },
-  { value: "GJ", label: "Gujarat (GJ)" },
-  { value: "AP", label: "Andhra Pradesh (AP)" },
-  { value: "TG", label: "Telangana (TG)" },
-  { value: "KL", label: "Kerala (KL)" },
-  { value: "PB", label: "Punjab (PB)" },
-  { value: "HR", label: "Haryana (HR)" },
-  { value: "OD", label: "Odisha (OD)" },
-  { value: "JH", label: "Jharkhand (JH)" },
-  { value: "CG", label: "Chhattisgarh (CG)" },
-  { value: "UK", label: "Uttarakhand (UK)" },
-  { value: "HP", label: "Himachal Pradesh (HP)" },
-  { value: "AS", label: "Assam (AS)" },
-];
+type ApiServer = "server1" | "server2";
+type ApiMode = "pdf" | "info" | "unknown";
 
 /* =========================================================
-   DETAIL ROW
+   HELPERS
 ========================================================= */
 
-function DetailItem({ icon: Icon, label, value, highlight = false, mono = false }: { icon: React.ElementType; label: string; value?: string; highlight?: boolean; mono?: boolean }) {
+const SERVER_LABELS: Record<ApiServer, string> = {
+  server1: "Server 1",
+  server2: "Server 2",
+};
+
+function pick<T = any>(...vals: (T | undefined | null)[]): T | undefined {
+  for (const v of vals) {
+    if (v !== undefined && v !== null && String(v).trim() !== "") return v;
+  }
+  return undefined;
+}
+
+/**
+ * Detect which mode the response represents based on fields present
+ */
+function detectMode(result: ApiWrapper): ApiMode {
+  // Explicit mode from backend
+  if (result.mode === "pdf" || result.mode === "info") return result.mode;
+  if (result.api_mode === "pdf" || result.api_mode === "info") return result.api_mode as ApiMode;
+
+  const pdf = pick(result.pdf, result.data?.pdf);
+  const fullname = pick(result.fullname, result.name, result.data?.fullname, result.data?.name);
+
+  if (pdf && fullname) return "pdf";
+  if (fullname || pick(result.sampleCode, result.data?.sampleCode)) return "info";
+  return "unknown";
+}
+
+function normaliseResult(result: ApiWrapper) {
+  const merged: FarmerInnerData = { ...(result.data || {}) };
+  return {
+    aadhaar: pick(result.aadhaar, merged.aadhaar),
+    name: pick(result.fullname, result.name, merged.fullname, merged.name),
+    pdf: pick(result.pdf, merged.pdf),
+    sampleCode: pick(result.sampleCode, merged.sampleCode),
+    applicationNo: pick(result.application_no, merged.application_no),
+    billable: pick(result.billable, merged.billable),
+    amount: pick(result.amount, merged.amount),
+    balanceLeft: pick(merged.balance_left),
+    dataMode: pick(result.mode, result.api_mode, merged.data_mode),
+    source: pick(merged.source),
+    orderId: pick(result.order_id),
+    charge: result.charge,
+    oldBalance: result.old_balance,
+    newBalance: result.new_balance,
+    state: pick(result.state),
+    message: pick(result.message, merged.message),
+  };
+}
+
+
+function DetailItem({
+  icon: Icon,
+  label,
+  value,
+  highlight = false,
+  mono = false,
+}: {
+  icon: React.ElementType;
+  label: string;
+  value?: string | number;
+  highlight?: boolean;
+  mono?: boolean;
+}) {
+  if (value === undefined || value === null || String(value).trim() === "") return null;
   return (
-    <div className={cn("rounded-xl border p-4 transition-all duration-300", "border-orange-100 bg-orange-50/50", "hover:border-orange-300 hover:bg-orange-50")}>
+    <div
+      className={cn(
+        "rounded-xl border p-4 transition-all duration-300",
+        "border-orange-100 bg-orange-50/50",
+        "hover:border-orange-300 hover:bg-orange-50"
+      )}
+    >
       <div className="flex items-center gap-2 mb-2">
         <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-black">
           <Icon className="h-3.5 w-3.5 text-white" />
         </div>
-        <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">{label}</span>
+        <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+          {label}
+        </span>
       </div>
-      <p className={cn("font-bold text-black", highlight && "text-orange-600 text-lg", mono && "font-mono text-sm break-all")}>{value?.trim() || "—"}</p>
+      <p
+        className={cn(
+          "font-bold text-black",
+          highlight && "text-orange-600 text-lg",
+          mono && "font-mono text-sm break-all"
+        )}
+      >
+        {String(value)}
+      </p>
     </div>
   );
 }
@@ -137,6 +202,11 @@ export default function FarmerAgriPdfPage() {
   const [showDialog, setShowDialog] = React.useState(false);
   const [searchedAadhaar, setSearchedAadhaar] = React.useState("");
 
+  // ✅ which API was used
+  const [usedServer, setUsedServer] = React.useState<ApiServer | null>(null);
+  // ✅ detected response mode
+  const [apiMode, setApiMode] = React.useState<ApiMode>("unknown");
+
   /* =========================================================
      FORM
   ========================================================= */
@@ -146,6 +216,7 @@ export default function FarmerAgriPdfPage() {
     defaultValues: {
       aadhaar: "",
       state: "",
+      server: "server1",
     },
   });
 
@@ -154,46 +225,58 @@ export default function FarmerAgriPdfPage() {
     setError(null);
     setResult(null);
     setShowDialog(false);
+    setApiMode("unknown");
 
     const aadhaar = data.aadhaar.trim();
     const state = data.state.trim().toUpperCase();
+    const server: ApiServer = (data.server as ApiServer) || "server1";
 
     setSearchedAadhaar(aadhaar);
+    setUsedServer(server);
+
+    const endpoint =
+      server === "server1"
+        ? `/api/farmer-pdf?aadhaar=${encodeURIComponent(aadhaar)}&state=${encodeURIComponent(state)}`
+        : `/api/farmer-pdf/dx?aadhaar=${encodeURIComponent(aadhaar)}&state=${encodeURIComponent(state)}`;
 
     try {
-      const response = await fetch(`/api/farmer-pdf?aadhaar=${encodeURIComponent(aadhaar)}&state=${encodeURIComponent(state)}`, {
+      const response = await apiFetch(endpoint, {
         method: "GET",
         cache: "no-store",
-        headers: {
-          Accept: "application/json",
-        },
+        headers: { Accept: "application/json" },
       });
 
       let apiResult: ApiWrapper;
-
       try {
         apiResult = await response.json();
       } catch {
         throw new Error("Invalid response received from Farmer Agri PDF service.");
       }
 
-      console.log("Farmer Agri PDF API Response:", apiResult);
 
-      // Handle HTTP errors
+      // HTTP error
       if (!response.ok) {
-        const errMsg = apiResult.error || apiResult.message || `Service returned HTTP ${response.status}`;
+        const errMsg =
+          apiResult.error ||
+          apiResult.message ||
+          `Service returned HTTP ${response.status}`;
         throw new Error(errMsg);
       }
 
-      // Check business status
-      const farmerData = apiResult.data || apiResult;
-      if (String((farmerData as FarmerData).status) !== "200") {
-        const errMsg = farmerData.message || apiResult.message || "Farmer Agri PDF verification failed.";
-        setError(errMsg);
-        return;
+      // Detect mode from response
+      const mode = detectMode(apiResult);
+      setApiMode(mode);
+
+      // Success validation: either pdf OR info fields must exist
+      const pdf = pick(apiResult.pdf, apiResult.data?.pdf);
+      const sampleCode = pick(apiResult.sampleCode, apiResult.data?.sampleCode);
+      const fullname = pick(apiResult.fullname, apiResult.name, apiResult.data?.fullname, apiResult.data?.name);
+
+      if (!pdf && !sampleCode && !fullname) {
+        const errMsg = apiResult.error || apiResult.message || "No usable data returned from API.";
+        throw new Error(errMsg);
       }
 
-      // Success
       setResult(apiResult);
       setError(null);
       setShowDialog(true);
@@ -201,6 +284,7 @@ export default function FarmerAgriPdfPage() {
     } catch (err) {
       console.error("Farmer Agri PDF Error:", err);
       setResult(null);
+      setApiMode("unknown");
       setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     } finally {
       setIsLoading(false);
@@ -208,34 +292,130 @@ export default function FarmerAgriPdfPage() {
   };
 
   /* =========================================================
+     NORMALISED DATA
+  ========================================================= */
+
+  const normalised = React.useMemo(
+    () => (result ? normaliseResult(result) : null),
+    [result]
+  );
+
+  /* =========================================================
      DOWNLOAD PDF
   ========================================================= */
 
-  const downloadPdf = () => {
-    const pdfBase64 = result?.pdf || result?.data?.pdf;
-    if (!pdfBase64) return;
+  const canDownload = Boolean(normalised?.pdf);
 
-    const link = document.createElement("a");
-    link.href = pdfBase64;
-    link.download = `FARMER_${result?.aadhaar || searchedAadhaar}_${Date.now()}.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+  const downloadPdf = async () => {
+  if (!normalised?.pdf) {
+    alert("PDF data not available");
+    return;
+  }
+
+  const pdfSource = normalised.pdf;
+  const filename = `FARMER_${normalised.aadhaar || searchedAadhaar}_${Date.now()}.pdf`;
+
+  try {
+    // ---------- Clean base64 (remove whitespace/newlines) ----------
+    const cleanBase64 = (str: string) =>
+      str.replace(/^data:application\/pdf;base64,/, "").replace(/\s/g, "");
+
+    // ---------- Case 1: already a URL (http/https) ----------
+    if (/^https?:\/\//i.test(pdfSource)) {
+      const res = await fetch(pdfSource, { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      triggerDownload(blob, filename);
+      return;
+    }
+
+    // ---------- Case 2: already a blob: URL ----------
+    if (pdfSource.startsWith("blob:")) {
+      const a = document.createElement("a");
+      a.href = pdfSource;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      return;
+    }
+
+    // ---------- Case 3: base64 (with or without data: prefix) ----------
+    const base64 = cleanBase64(pdfSource);
+    if (base64.length < 100) throw new Error("Invalid PDF data");
+
+    const blob = base64ToBlob(base64, "application/pdf");
+    triggerDownload(blob, filename);
+  } catch (err) {
+    console.error("PDF download failed:", err);
+    alert(
+      "PDF download failed: " +
+        (err instanceof Error ? err.message : "Unknown error")
+    );
+  }
+};
+
+/* ---------- Chunked base64 → Blob (large files safe) ---------- */
+function base64ToBlob(base64: string, mime: string): Blob {
+  const sliceSize = 1024;
+  const byteArrays: BlobPart[] = [];
+
+  for (let offset = 0; offset < base64.length; offset += sliceSize) {
+    const slice = base64.slice(offset, offset + sliceSize);
+    const byteNumbers = new Array(slice.length);
+
+    for (let i = 0; i < slice.length; i++) {
+      byteNumbers[i] = slice.charCodeAt(i);
+    }
+let byteArray: BlobPart;
+    try {
+      byteArray = new Uint8Array(
+        atob(slice)
+          .split("")
+          .map((c) => c.charCodeAt(0))
+      );
+    } catch {
+      // fallback: direct chars (agar already decoded)
+      byteArray = new Uint8Array(byteNumbers);
+
+    }
+
+    byteArrays.push(byteArray);
+  }
+
+  return new Blob(byteArrays, { type: mime });
+}
+
+/* ---------- Actual download trigger ---------- */
+function triggerDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.rel = "noopener";
+  a.style.display = "none";
+  document.body.appendChild(a);
+  a.click();
+
+  // cleanup after tick
+  setTimeout(() => {
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, 1500);
+}
 
   /* =========================================================
      RESET
   ========================================================= */
 
   const resetSearch = () => {
-    form.reset({
-      aadhaar: "",
-      state: "",
-    });
+    form.reset({ aadhaar: "", state: "", server: form.getValues("server") || "server1" });
     setResult(null);
     setError(null);
     setSearchedAadhaar("");
     setShowDialog(false);
+    setUsedServer(null);
+    setApiMode("unknown");
   };
 
   /* =========================================================
@@ -244,11 +424,7 @@ export default function FarmerAgriPdfPage() {
 
   const containerVariants = {
     hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.5, staggerChildren: 0.1 },
-    },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.5, staggerChildren: 0.1 } },
   };
 
   const itemVariants = {
@@ -263,26 +439,20 @@ export default function FarmerAgriPdfPage() {
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8">
       <motion.div initial="hidden" animate="visible" variants={containerVariants} className="max-w-2xl mx-auto">
-        {/* =====================================================
-            HEADER
-        ===================================================== */}
-
+        {/* HEADER */}
         <motion.div variants={itemVariants} className="text-center mb-10">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#ff3800]/10">
             <FileText className="h-7 w-7 text-[#ff3800]" />
           </div>
-
           <h1 className="text-4xl sm:text-5xl font-bold text-slate-900 dark:text-white mb-2 tracking-tight">
             Farmer <span className="text-[#ff3800]">Agri PDF</span>
           </h1>
-
-          <p className="text-slate-500 dark:text-gray-400 text-lg">Generate Agristack farmer verification PDF</p>
+          <p className="text-slate-500 dark:text-gray-400 text-lg">
+            Generate Agristack farmer verification PDF
+          </p>
         </motion.div>
 
-        {/* =====================================================
-            SEARCH CARD
-        ===================================================== */}
-
+        {/* SEARCH CARD */}
         <motion.div variants={itemVariants}>
           <Card className="border-0 shadow-xl shadow-slate-200/50 dark:shadow-[#ff3800]/5 dark:border-[#ff3800]/20 dark:bg-black/60 backdrop-blur-sm rounded-3xl overflow-hidden">
             <CardHeader className="px-6 pb-6 pt-6">
@@ -293,18 +463,18 @@ export default function FarmerAgriPdfPage() {
                   </span>
                   <span>Agristack Verification</span>
                 </CardTitle>
-
-                <ServiceChargeCard charge={(retailer as any)?.agri_pdf_fee ?? 0} serviceName="Farmer Agri PDF" className="w-full sm:w-auto sm:max-w-none" />
+                <ServiceChargeCard
+                  charge={(retailer as any)?.agri_pdf_fee ?? 0}
+                  serviceName="Farmer Agri PDF"
+                  className="w-full sm:w-auto sm:max-w-none"
+                />
               </div>
             </CardHeader>
 
             <CardContent className="px-6 pb-6">
               <Form {...(form as any)}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-                  {/* =================================================
-                      AADHAAR NUMBER
-                  ================================================= */}
-
+                  {/* AADHAAR */}
                   <FormField
                     control={form.control as any}
                     name="aadhaar"
@@ -312,10 +482,8 @@ export default function FarmerAgriPdfPage() {
                       <FormItem>
                         <FormLabel className="text-slate-700 dark:text-gray-300 flex items-center gap-2">
                           <CreditCard className="h-4 w-4 text-[#ff3800]" />
-                          Aadhaar Number
-                          <span className="text-[#ff3800]">*</span>
+                          Aadhaar Number <span className="text-[#ff3800]">*</span>
                         </FormLabel>
-
                         <FormControl>
                           <Input
                             {...field}
@@ -332,18 +500,13 @@ export default function FarmerAgriPdfPage() {
                             }}
                           />
                         </FormControl>
-
                         <p className="text-xs text-slate-400 dark:text-gray-500">Example: 335400206902</p>
-
                         <FormMessage className="text-[#ff3800]" />
                       </FormItem>
                     )}
                   />
 
-                  {/* =================================================
-                      STATE
-                  ================================================= */}
-
+                  {/* STATE */}
                   <FormField
                     control={form.control as any}
                     name="state"
@@ -351,19 +514,17 @@ export default function FarmerAgriPdfPage() {
                       <FormItem>
                         <FormLabel className="text-slate-700 dark:text-gray-300 flex items-center gap-2">
                           <MapPin className="h-4 w-4 text-[#ff3800]" />
-                          State
-                          <span className="text-[#ff3800]">*</span>
+                          State <span className="text-[#ff3800]">*</span>
                         </FormLabel>
-
                         <Select value={field.value} onValueChange={field.onChange}>
                           <FormControl>
-                            <SelectTrigger className="h-12 rounded-xl border-slate-200 dark:border-[#ff3800]/20 bg-white dark:bg-white/5 focus:ring-[#ff3800]/20">
+                            <SelectTrigger className="h-12 rounded-xl border-slate-200 dark:border-[#ff3800]/20 bg-white dark:bg-white/5 focus:ring-[#ff3800]/20 w-full">
                               <SelectValue placeholder="Select State" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent className="rounded-xl border-slate-200 dark:border-[#ff3800]/20 max-h-[280px]">
                             <SelectGroup>
-                              {STATE_OPTIONS.map((s) => (
+                              {indianStates.map((s) => (
                                 <SelectItem key={s.value} value={s.value}>
                                   {s.label}
                                 </SelectItem>
@@ -371,16 +532,40 @@ export default function FarmerAgriPdfPage() {
                             </SelectGroup>
                           </SelectContent>
                         </Select>
-
                         <FormMessage className="text-[#ff3800]" />
                       </FormItem>
                     )}
                   />
 
-                  {/* =================================================
-                      ACTIONS
-                  ================================================= */}
+                  {/* SERVER */}
+                  <FormField
+                    control={form.control as any}
+                    name="server"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-slate-700 dark:text-gray-300 flex items-center gap-2">
+                          <Server className="h-4 w-4 text-[#ff3800]" />
+                          Select Server
+                        </FormLabel>
+                        <Select value={field.value || ""} onValueChange={field.onChange}>
+                          <FormControl>
+                            <SelectTrigger className="h-12 rounded-xl border-slate-200 dark:border-[#ff3800]/20 bg-white dark:bg-white/5 focus:ring-[#ff3800]/20 w-full">
+                              <SelectValue placeholder="Select Server" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent className="rounded-xl border-slate-200 dark:border-[#ff3800]/20">
+                            <SelectGroup>
+                              <SelectItem value="server1">SERVER 1 </SelectItem>
+                              <SelectItem value="server2">SERVER 2 </SelectItem>
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage className="text-[#ff3800]" />
+                      </FormItem>
+                    )}
+                  />
 
+                  {/* ACTIONS */}
                   <div className="flex flex-col sm:flex-row gap-3 pt-2">
                     <Button
                       type="submit"
@@ -418,20 +603,32 @@ export default function FarmerAgriPdfPage() {
           </Card>
         </motion.div>
 
-        {/* =====================================================
-            ERROR ALERT
-        ===================================================== */}
-
+        {/* ERROR */}
         <AnimatePresence>
           {error && (
-            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="mt-6">
-              <Alert variant="destructive" className="border-red-300 dark:border-red-500/50 bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 rounded-2xl">
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="mt-6"
+            >
+              <Alert
+                variant="destructive"
+                className="border-red-300 dark:border-red-500/50 bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 rounded-2xl"
+              >
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle>Verification Failed</AlertTitle>
                 <AlertDescription>
                   <div className="flex flex-col gap-1">
                     <span>{error}</span>
-                    {searchedAadhaar && <span className="text-xs opacity-80">Aadhaar: {searchedAadhaar}</span>}
+                    {searchedAadhaar && (
+                      <span className="text-xs opacity-80">Aadhaar: {searchedAadhaar}</span>
+                    )}
+                    {usedServer && (
+                      <span className="text-xs opacity-80">
+                        Server: {SERVER_LABELS[usedServer]}
+                      </span>
+                    )}
                   </div>
                 </AlertDescription>
               </Alert>
@@ -439,14 +636,16 @@ export default function FarmerAgriPdfPage() {
           )}
         </AnimatePresence>
 
-        {/* =====================================================
-            RESULT DIALOG
-        ===================================================== */}
-
+        {/* RESULT DIALOG */}
         <Dialog open={showDialog} onOpenChange={setShowDialog}>
           <DialogContent className={cn("sm:max-w-lg max-h-[90vh] overflow-hidden p-0 gap-0", "border-2 border-orange-600 bg-white shadow-2xl")}>
-            {/* Top Orange Bar */}
-            <motion.div initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ duration: 0.5, delay: 0.1 }} className="h-1.5 w-full origin-left bg-orange-600" />
+            {/* Top Bar */}
+            <motion.div
+              initial={{ scaleX: 0 }}
+              animate={{ scaleX: 1 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              className="h-1.5 w-full origin-left bg-orange-600"
+            />
 
             {/* Header */}
             <DialogHeader className="px-6 pt-5 pb-0 space-y-2">
@@ -461,35 +660,128 @@ export default function FarmerAgriPdfPage() {
                     <CheckCircle2 className="h-5 w-5 text-orange-600" />
                   </motion.div>
                   <div>
-                    <DialogTitle className="text-xl font-bold text-black">PDF Generated</DialogTitle>
-                    <DialogDescription className="text-sm text-gray-500">Agristack verification successful</DialogDescription>
+                    <DialogTitle className="text-xl font-bold text-black">
+                      {apiMode === "pdf" ? "PDF Generated" : "Details Fetched"}
+                    </DialogTitle>
+                    <DialogDescription className="text-sm text-gray-500">
+                      {apiMode === "pdf"
+                        ? "Agristack verification successful"
+                        : "Farmer card details fetched (no PDF available)"}
+                    </DialogDescription>
                   </div>
                 </div>
-                <Badge className={cn("bg-orange-600 text-white border-0 px-3 py-1", "hover:bg-orange-700")}>SUCCESS</Badge>
+                <Badge
+                  className={cn(
+                    "border-0 px-3 py-1 text-white",
+                    apiMode === "pdf"
+                      ? "bg-emerald-600 hover:bg-emerald-700"
+                      : "bg-orange-600 hover:bg-orange-700"
+                  )}
+                >
+                  {apiMode === "pdf" ? "PDF READY" : "INFO ONLY"}
+                </Badge>
               </div>
             </DialogHeader>
 
             <Separator className="bg-orange-200 my-4" />
 
+            {/* ✅ API Server Used Banner */}
+            <div className="px-6">
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15 }}
+                className="flex items-center justify-between rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5"
+              >
+                <div className="flex items-center gap-2">
+                  <Server className="h-4 w-4 text-blue-600" />
+                  <span className="text-xs font-semibold uppercase tracking-wider text-blue-700">
+                    API Called
+                  </span>
+                </div>
+                <span className="text-sm font-bold text-blue-800">
+                  {usedServer ? SERVER_LABELS[usedServer] : "—"}
+                </span>
+              </motion.div>
+            </div>
+
             {/* Body */}
-            <div className="px-6 overflow-y-auto max-h-[50vh]">
+            <div className="px-6 mt-4 overflow-y-auto max-h-[50vh]">
               <div className="space-y-4 pb-2">
                 {/* Status Message */}
-                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="rounded-xl border border-orange-200 bg-orange-50 p-4 text-center">
-                  <p className="text-sm font-semibold text-orange-800">{result?.message || result?.data?.message || "Agristack verification successful"}</p>
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                  className="rounded-xl border border-orange-200 bg-orange-50 p-4 text-center"
+                >
+                  <p className="text-sm font-semibold text-orange-800">
+                    {normalised?.message ||
+                      (apiMode === "pdf"
+                        ? "Agristack verification successful"
+                        : "Farmer card details fetched")}
+                  </p>
                 </motion.div>
 
-                {/* Details Grid */}
+                {/* Details Grid — dynamic, only non-empty items render */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <DetailItem icon={CreditCard} label="Aadhaar Number" value={result?.aadhaar || result?.data?.aadhaar || searchedAadhaar} highlight mono />
-                  <DetailItem icon={User} label="Name" value={result?.name || result?.data?.name} highlight />
-                  <DetailItem icon={MapPin} label="State" value={result?.state} />
-                  <DetailItem icon={BadgeCheck} label="Application No" value={result?.application_no || result?.data?.application_no} mono />
-                  <DetailItem icon={Receipt} label="Order ID" value={result?.order_id} mono />
-                  {result?.charge !== undefined && <DetailItem icon={IndianRupee} label="Amount Charged" value={`₹${result.charge}`} />}
-                  <DetailItem icon={Database} label="Data Mode" value={result?.data?.data_mode || (result as any)?.data_mode} />
-                  <DetailItem icon={BadgeCheck} label="Billable" value={result?.data?.billable || result?.billable} />
+                  <DetailItem
+                    icon={CreditCard}
+                    label="Aadhaar Number"
+                    value={normalised?.aadhaar || searchedAadhaar}
+                    highlight
+                    mono
+                  />
+                  <DetailItem icon={User} label="Name" value={normalised?.name} highlight />
+                  <DetailItem icon={MapPin} label="State" value={normalised?.state} />
+                  <DetailItem
+                    icon={Hash}
+                    label="Sample Code"
+                    value={normalised?.sampleCode}
+                    mono
+                  />
+                  <DetailItem
+                    icon={BadgeCheck}
+                    label="Application No"
+                    value={normalised?.applicationNo}
+                    mono
+                  />
+                  <DetailItem icon={Receipt} label="Order ID" value={normalised?.orderId} mono />
+                  {typeof normalised?.charge === "number" && (
+                    <DetailItem
+                      icon={IndianRupee}
+                      label="Amount Charged"
+                      value={`₹${normalised.charge}`}
+                    />
+                  )}
+                  <DetailItem
+                    icon={Database}
+                    label="Data Mode"
+                    value={normalised?.dataMode}
+                  />
+                  <DetailItem
+                    icon={BadgeCheck}
+                    label="Billable"
+                    value={normalised?.billable}
+                  />
+                  <DetailItem icon={Info} label="Source" value={normalised?.source} />
                 </div>
+
+                {/* Info-only hint */}
+                {apiMode === "info" && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3"
+                  >
+                    <FileWarning className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                    <p className="text-xs text-amber-800">
+                      Is API call me PDF generate nahi hui. Sirf verification details mili hain.
+                      PDF ke liye doosra server try karein.
+                    </p>
+                  </motion.div>
+                )}
               </div>
             </div>
 
@@ -498,13 +790,28 @@ export default function FarmerAgriPdfPage() {
             {/* Footer */}
             <div className="px-6 py-4 bg-gray-50/50">
               <div className="flex flex-col sm:flex-row gap-3">
-                <Button type="button" variant="outline" onClick={() => setShowDialog(false)} className="h-11 flex-1 rounded-xl border-black text-black hover:bg-gray-100">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowDialog(false)}
+                  className="h-11 flex-1 rounded-xl border-black text-black hover:bg-gray-100"
+                >
                   Close
                 </Button>
 
-                <Button type="button" onClick={downloadPdf} className="h-11 flex-1 rounded-xl bg-orange-600 text-white hover:bg-orange-700 shadow-lg shadow-orange-600/20">
+                <Button
+                  type="button"
+                  onClick={downloadPdf}
+                  disabled={!canDownload}
+                  className={cn(
+                    "h-11 flex-1 rounded-xl text-white shadow-lg",
+                    canDownload
+                      ? "bg-orange-600 hover:bg-orange-700 shadow-orange-600/20"
+                      : "bg-gray-300 cursor-not-allowed shadow-none"
+                  )}
+                >
                   <FileDown className="mr-2 h-4 w-4" />
-                  Download PDF
+                  {canDownload ? "Download PDF" : "PDF Not Available"}
                 </Button>
               </div>
             </div>

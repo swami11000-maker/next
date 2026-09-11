@@ -13,6 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { apiFetch } from "@/lib/api-client";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -151,7 +152,7 @@ export default function EsharmPdfPage() {
         dob,
       });
 
-      const response = await fetch(`/api/esharm-pdf?${params.toString()}`, {
+      const response = await apiFetch(`/api/esharm-pdf?${params.toString()}`, {
         method: "GET",
         cache: "no-store",
         headers: {
@@ -167,7 +168,6 @@ export default function EsharmPdfPage() {
         throw new Error("Invalid response from E-Sharm service.");
       }
 
-      console.log("E-Sharm API Response:", apiResult);
 
       // HTTP error
       if (!response.ok) {

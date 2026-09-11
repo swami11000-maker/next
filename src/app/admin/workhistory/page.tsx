@@ -5,6 +5,7 @@ import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableHead, TableHeader, TableRow, TableCell } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { apiFetch } from "@/lib/api-client";
 
 interface HistoryItem {
   id: number;
@@ -36,7 +37,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const res = await fetch(path, {
+  const res = await apiFetch(path, {
     headers: { "Content-Type": "application/json", ...options.headers },
     cache: "no-store",
     ...options,

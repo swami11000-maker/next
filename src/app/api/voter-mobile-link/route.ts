@@ -67,12 +67,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // if (!isServiceEnabled(user, "voter_mobile_link")) {
-    //   return NextResponse.json(
-    //     { message: "Voter Mobile Link service is not enabled for your account" },
-    //     { status: 403 }
-    //   );
-    // }
+    if (!isServiceEnabled(user, "voter_mobile_link")) {
+      return NextResponse.json(
+        { message: "Voter Mobile Link service is not enabled for your account" },
+        { status: 403 }
+      );
+    }
 
     // -------------------------------------------------
     // 3. Get API Key

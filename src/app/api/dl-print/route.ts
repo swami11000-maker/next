@@ -58,9 +58,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    // if (!isServiceEnabled(user, "dl_print")) {
-    //   return NextResponse.json({ message: "DL Print service is not enabled for your account" }, { status: 403 });
-    // }
+    if (!isServiceEnabled(user, "dl_print")) {
+      return NextResponse.json({ message: "DL Print service is not enabled for your account" }, { status: 403 });
+    }
 
     // -------------------------------------------------
     // 3. Get API Key
@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
     const apiBaseUrl = process.env.APIZONE_URL;
 
     if (!apiBaseUrl) {
-      console.error("APIZONE_URL is missing");
+      console.error("url is missing");
       return NextResponse.json({ error: "API URL not configured" }, { status: 500 });
     }
 
@@ -130,10 +130,6 @@ export async function GET(request: NextRequest) {
       url.searchParams.set("state", state);
     }
 
-    // -------------------------------------------------
-    // 9. Call External API
-    // -------------------------------------------------
-// console.log(url)
     const response = await fetch(url.toString(), {
       method: "GET",
       cache: "no-store",
@@ -141,10 +137,6 @@ export async function GET(request: NextRequest) {
         Accept: "application/json",
       },
     });
-    // -------------------------------------------------
-    // 10. External API HTTP Error
-    // -------------------------------------------------
-    // console.log('response',response)
     if (!response.ok) {
       console.error("DL Print API HTTP error:", response.status);
       return NextResponse.json(

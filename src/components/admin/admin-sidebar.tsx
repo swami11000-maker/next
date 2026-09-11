@@ -1,6 +1,6 @@
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import Link from "next/link";
-import { Bike, Car, ClipboardList, LayoutDashboard, LucideCoins, LucideWorkflow, Stethoscope, Users } from "lucide-react";
+import { Bike, Car, ClipboardList, LayoutDashboard, LucideCoins, LucideWorkflow, Stethoscope, Users, CreditCard, CommandIcon } from "lucide-react";
 import { LogoutButton } from "@/components/logout-button";
 
 const menuItems = [
@@ -9,6 +9,12 @@ const menuItems = [
     title: "Dashboard",
     href: "/admin",
     icon: LayoutDashboard,
+  },
+  {
+    id: "add-money",
+    title: "Add Money Dashboard",
+    href: "/admin/addmoney-dashboard",
+    icon: CreditCard,
   },
   {
     id: "retailers",
@@ -51,6 +57,12 @@ const menuItems = [
     title: "Transactions",
     href: "/admin/transactions",
     icon: LucideCoins,
+  },
+  {
+    id: "addmoney-history",
+    title: "Add Money History",
+    href: "/admin/addmoney-history",
+    icon: CommandIcon,
   },
 ];
 

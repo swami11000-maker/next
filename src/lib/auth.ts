@@ -14,6 +14,7 @@ export interface Retailer {
   status: string;
   balance: number;
   usertype: string;
+  lastaddmoneyid?:string;
   "2wheeler_puc": string;
   "2wheeler_fee": number;
   "4wheeler_puc": string;
@@ -47,9 +48,18 @@ export interface Retailer {
   fees?: string;
 }
 
-export function isServiceEnabled(retailer: Retailer | null | undefined, serviceFlag: keyof Retailer): boolean {
+export function isServiceEnabled(
+  retailer: Retailer | null | undefined,
+  serviceFlag: keyof Retailer
+): boolean {
   if (!retailer) return false;
-  return retailer[serviceFlag] === "yes";
+
+  const value = retailer[serviceFlag];
+
+  // Safely handle non-string values (numbers, booleans, null, undefined)
+  if (typeof value !== "string") return false;
+
+  return value.trim().toLowerCase() === "yes";
 }
 
 export interface JwtPayload {
@@ -130,7 +140,7 @@ export const RETAILER_SAFE_COLUMNS = [
   "esharm_mob_update_fee",
 ];
 
-const JWT_SECRET = "your_strong_jwt_secret_here";
+const JWT_SECRET = process.env.JWT_SECRET ?? "fallback_secret_change_me";
 
 export function signToken(payload: JwtPayload): string {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
@@ -278,7 +288,6 @@ export interface TwoWheelerRequest {
   user_mob: number | null;
   order_id: number;
   vehicle_no: string;
-  mobile_no: string;
   frontside: string;
   backside: string;
   status: TwoWheelerStatus;
@@ -292,7 +301,6 @@ export const TWOWHEELER_SAFE_COLUMNS = [
   "`user_mob`",
   "`order_id`",
   "`vehicle_no`",
-  "`mobile_no`",
   "frontside",
   "backside",
   "status",
@@ -308,7 +316,6 @@ export interface FourWheelerRequest {
   user_mob: number | null;
   order_id: number;
   vehicle_no: string;
-  mobile_no: string;
   frontside: string;
   backside: string;
   status: FourWheelerStatus;
@@ -322,7 +329,6 @@ export const FOURWHEELER_SAFE_COLUMNS = [
   "`user_mob`",
   "`order_id`",
   "`vehicle_no`",
-  "`mobile_no`",
   "frontside",
   "backside",
   "status",
@@ -407,20 +413,50 @@ export async function getUserDeatail(request: NextRequest): Promise<Retailer | n
     if (!payload?.id) return null;
 
     const rows = await runQuery<Retailer[]>(
-      `
-      SELECT
-        id,
-        name,
-        mobile,
-        email,
-        status,
-        balance
-      FROM retailer
-      WHERE id = ?
-      LIMIT 1
-      `,
-      [payload.id],
-    );
+  `
+  SELECT
+    id,
+    name,
+    mobile,
+    email,
+    status,
+    balance,
+    \`2wheeler_puc\`,
+    \`2wheeler_fee\`,
+    \`4wheeler_puc\`,
+    \`4wheeler_fee\`,
+    \`voter_mobile_link\`,
+    \`voter_mobile_link_fee\`,
+    \`rc_mobile_update\`,
+    \`rc_mo_update_fee\`,
+    \`ll_medical\`,
+    \`ll_medical_fee\`,
+    \`pan_find\`,
+    \`pan_find_fee\`,
+    \`pandetils\`,
+    \`pandetils_fee\`,
+    \`dl_find\`,
+    \`dl_find_fee\`,
+    \`dl_print\`,
+    \`dl_print_fee\`,
+    \`dl_mo_update\`,
+    \`dl_mo_update_fee\`,
+    \`ll_exam\`,
+    \`ll_exam_fee\`,
+    \`agri_pdf\`,
+    \`agri_pdf_fee\`,
+    \`rc_print\`,
+    \`rc_print_fee\`,
+    \`esharm_pdf\`,
+    \`esharm_pdf_fee\`,
+    \`esharm_mob_update\`,
+    \`esharm_mob_update_fee\`
+  FROM retailer
+  WHERE id = ?
+  LIMIT 1
+  `,
+  [payload.id],
+);
 
     return rows[0] ?? null;
   } catch (error) {

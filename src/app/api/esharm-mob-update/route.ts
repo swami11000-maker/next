@@ -51,9 +51,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    // if (!isServiceEnabled(user, "esharm_mob_update")) {
-    //   return NextResponse.json({ message: "E-Sharm Mobile Update service is not enabled for your account" }, { status: 403 });
-    // }
+    if (!isServiceEnabled(user, "esharm_mob_update")) {
+      return NextResponse.json({ message: "E-Sharm Mobile Update service is not enabled for your account" }, { status: 403 });
+    }
 
     const apiKey = process.env.DARKXEN_KEY;
     if (!apiKey) {
@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
     const providerDob = dob.includes("-") ? dob.replace(/-/g, "/") : dob;
 
     const base = apiBaseUrl.replace(/\/+$/, "");
-    const url = new URL(`${base}/eshram_mobile_update.php`);
+    const url = new URL(`${base}/AADHAR/eshram_mobile_update.php`);
     url.searchParams.set("apiKey", apiKey);
     url.searchParams.set("uid", uid);
     url.searchParams.set("dob", providerDob);

@@ -60,7 +60,12 @@ export async function PUT(
     const userMob = requestData.user_mob;
     const currentStatus = requestData.status;
     const now = new Date().toISOString().slice(0, 19).replace("T", " ");
-
+if(currentStatus === STATUS_REFUND){
+   return NextResponse.json(
+        { message: "Already Refunded " },
+        { status: 404 },
+      );
+}
     const updates: string[] = [];
     const values: SqlParam[] = [];
 
@@ -119,56 +124,96 @@ export async function PUT(
       }
 
       if (newStatus === STATUS_REFUND && currentStatus !== STATUS_REFUND) {
-        const charge = Number((await runQuery<any[]>("SELECT charge FROM `ll_medical` WHERE id = ? LIMIT 1", [Number(id)]))[0]?.charge ?? 0);
+        const [workHistoryRows] = await conn.query<any[]>(
+          `
+          SELECT charge, user_mob
+          FROM \`workhistory\`
+          WHERE \`order_id\` = ?
+          LIMIT 1
+          `,
+          [orderId],
+        );
 
-        if (charge > 0) {
-          const retailerRows = await runQuery<{ id: number; balance: number }[]>(
-            "SELECT id, balance FROM retailer WHERE id = ? LIMIT 1 FOR UPDATE",
-            [Number(userMob)]
-          );
-
-          if (retailerRows.length > 0) {
-            const retailer = retailerRows[0];
-            const currentBalance = Number(retailer.balance);
-            const newBalance = currentBalance + charge;
-
-            await conn.query(
-              "UPDATE retailer SET balance = ? WHERE id = ? LIMIT 1",
-              [newBalance, retailer.id]
-            );
-
-            await conn.query(
-              `
-              INSERT INTO \`transitions\`
-              (
-                \`order_id\`,
-                \`user_mob\`,
-                \`service_name\`,
-                \`old_balance\`,
-                \`charge\`,
-                \`new_balance\`,
-                \`tranfer_type\`,
-                \`status\`,
-                \`date_time\`,
-                \`remark\`
-              )
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-              `,
-              [
-                orderId,
-                userMob,
-                SERVICE_NAME,
-                currentBalance,
-                charge,
-                newBalance,
-                "credit",
-                STATUS_REFUND,
-                now,
-                `Refund for ll_medical request #${id}`,
-              ]
-            );
-          }
+        if (!Array.isArray(workHistoryRows) || workHistoryRows.length === 0) {
+          throw new Error(`Work history not found for order: ${orderId}`);
         }
+
+        const workHistory = workHistoryRows[0];
+        const charge = Number(workHistory.charge);
+
+        if (!Number.isFinite(charge) || charge <= 0) {
+          throw new Error(`Invalid refund charge for order: ${orderId}`);
+        }
+
+        const retailerMobile = workHistory.user_mob;
+
+        const [retailerRows] = await conn.query<any[]>(
+          `
+          SELECT id, balance
+          FROM \`retailer\`
+          WHERE \`mobile\` = ?
+          LIMIT 1
+          FOR UPDATE
+          `,
+          [retailerMobile],
+        );
+
+        if (!Array.isArray(retailerRows) || retailerRows.length === 0) {
+          throw new Error(`Retailer not found for mobile: ${retailerMobile}`);
+        }
+
+        const retailer = retailerRows[0];
+
+        let currentBalance = 0;
+        if (
+          retailer.balance !== null &&
+          retailer.balance !== undefined &&
+          retailer.balance !== ""
+        ) {
+          currentBalance = Number(retailer.balance);
+        }
+
+        if (!Number.isFinite(currentBalance)) {
+          throw new Error(`Invalid retailer balance value: ${retailer.balance}`);
+        }
+
+        const newBalance = currentBalance + charge;
+
+        await conn.query(
+          "UPDATE retailer SET balance = ? WHERE id = ? LIMIT 1",
+          [newBalance, retailer.id]
+        );
+
+        await conn.query(
+          `
+          INSERT INTO \`transitions\`
+          (
+            \`order_id\`,
+            \`user_mob\`,
+            \`service_name\`,
+            \`old_balance\`,
+            \`charge\`,
+            \`new_balance\`,
+            \`tranfer_type\`,
+            \`status\`,
+            \`date_time\`,
+            \`remark\`
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `,
+          [
+            orderId,
+            retailerMobile,
+            SERVICE_NAME,
+            currentBalance,
+            charge,
+            newBalance,
+            "credit",
+            STATUS_REFUND,
+            now,
+            `Refund for ll_medical request #${id}`,
+          ]
+        );
       }
     });
 

@@ -53,9 +53,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    // if (!isServiceEnabled(user, "pandetils")) {
-    //   return NextResponse.json({ message: "PAN Details service is not enabled for your account" }, { status: 403 });
-    // }
+    if (!isServiceEnabled(user, "pandetils")) {
+      return NextResponse.json({ message: "PAN Details service is not enabled for your account" }, { status: 403 });
+    }
 
     // -------------------------------------------------
     // 3. Get API Key

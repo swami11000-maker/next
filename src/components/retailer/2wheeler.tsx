@@ -21,6 +21,7 @@ import { ServiceChargeCard } from "../ui/service-charge-card";
 import { toast } from "../ui/toast";
 import { ImageUpload } from "../ui/imageupload";
 import { emitRetailerDataChanged } from "@/lib/data-events";
+import { apiFetch } from "@/lib/api-client";
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -104,7 +105,7 @@ export default function VehicleDocumentUpload() {
     try {
       const [frontside, backside] = await Promise.all([fileToBase64(data.frontSidePhoto), fileToBase64(data.backSidePhoto)]);
 
-      const response = await fetch("/api/2wheeler", {
+      const response = await apiFetch("/api/2wheeler", {
         method: "POST",
 
         headers: {

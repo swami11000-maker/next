@@ -23,34 +23,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { useDataProvider } from "@/hooks/useDataProvider";
 import { ServiceChargeCard } from "../ui/service-charge-card";
 import { emitRetailerDataChanged } from "@/lib/data-events";
-
-/* =========================================================
-   ZOD SCHEMA
-========================================================= */
-
-const formSchema = z.object({
-  rcNumber: z
-    .string()
-    .min(3, {
-      message: "RC number is required",
-    })
-    .max(20, {
-      message: "RC number must not exceed 20 characters",
-    })
-    .regex(/^[A-Z0-9 -]+$/, {
-      message: "Enter a valid RC number",
-    }),
-
-  cardColorType: z.enum(["old", "new"], {
-    message: "Please select card color type",
-  }),
-
-  cardType: z.enum(["without-chip", "with-chip"], {
-    message: "Please select card type",
-  }),
-});
-
-type FormValues = z.infer<typeof formSchema>;
+import { apiFetch } from "@/lib/api-client";
 
 /* =========================================================
    API RESPONSE TYPE
@@ -85,13 +58,12 @@ export default function RcPdf() {
      FORM
   ========================================================= */
 
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+  const form = useForm({
 
     defaultValues: {
       rcNumber: "",
-      cardColorType: undefined,
-      cardType: undefined,
+      cardColorType: "New Background",
+      cardType: "Chip",
     },
   });
 
@@ -99,7 +71,7 @@ export default function RcPdf() {
      SUBMIT - GET API
   ========================================================= */
 
-  const onSubmit = async (data: FormValues) => {
+  const onSubmit = async (data:any) => {
     setIsLoading(true);
     setError(null);
     setResult(null);
@@ -114,9 +86,8 @@ export default function RcPdf() {
 
       const apiUrl = `/api/rc-print?${params.toString()}`;
 
-      console.log("RC PDF API Request:", apiUrl);
 
-      const response = await fetch(apiUrl, {
+      const response = await apiFetch(apiUrl, {
         method: "GET",
         headers: {
           Accept: "application/json",
@@ -126,7 +97,6 @@ export default function RcPdf() {
 
       const apiResult: RcApiResponse = await response.json();
 
-      console.log("RC PDF API Response:", apiResult);
 
       /* =====================================================
          404 / FAILED
@@ -168,8 +138,8 @@ export default function RcPdf() {
   const resetSearch = () => {
     form.reset({
       rcNumber: "",
-      cardColorType: undefined,
-      cardType: undefined,
+      cardColorType: "New Background",
+      cardType: "Chip",
     });
 
     setResult(null);

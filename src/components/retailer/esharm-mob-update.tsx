@@ -21,6 +21,7 @@ import { useDataProvider } from "@/hooks/useDataProvider";
 import { ServiceChargeCard } from "../ui/service-charge-card";
 import { cn } from "@/lib/utils";
 import { emitRetailerDataChanged } from "@/lib/data-events";
+import { apiFetch } from "@/lib/api-client";
 
 /* =========================================================
    ZOD SCHEMA
@@ -140,7 +141,7 @@ export default function EsharmMobileUpdatePage() {
     setSearchedUid(uid);
 
     try {
-      const response = await fetch(`/api/esharm-mob-update?uid=${encodeURIComponent(uid)}&dob=${encodeURIComponent(dob)}&mobile=${encodeURIComponent(mobile)}`, {
+       const response = await apiFetch(`/api/esharm-mob-update?uid=${encodeURIComponent(uid)}&dob=${encodeURIComponent(dob)}&mobile=${encodeURIComponent(mobile)}`, {
         method: "GET",
         cache: "no-store",
         headers: { Accept: "application/json" },

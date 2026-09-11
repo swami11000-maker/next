@@ -79,9 +79,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // if (!isServiceEnabled(user, "agri_pdf")) {
-    //   return NextResponse.json({ message: "Farmer Card PDF service is not enabled for your account" }, { status: 403 });
-    // }
+    if (!isServiceEnabled(user, "agri_pdf")) {
+      return NextResponse.json({ message: "Farmer Card PDF service is not enabled for your account" }, { status: 403 });
+    }
 
     // -------------------------------------------------
     // 3. Get API Key

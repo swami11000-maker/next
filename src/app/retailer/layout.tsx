@@ -23,14 +23,14 @@ async function Layout({ children }: { children: React.ReactNode }) {
           </header>
 
           <main className="min-w-0 flex-1 w-full overflow-x-hidden bg-gray-600 ">
-            <div className="grid grid-cols-12 gap-2 m-2">
+            <div className="grid grid-cols-12 gap-2 m-2 max-h-full">
               <div className="w-full p-3 sm:p-4 md:p-6 bg-gray-700 col-span-9 rounded-4xl ">{children}</div>
               <div className="col-span-3 rounded-4xl bg-orange-600">
                 <PriceSidebar />
               </div>
             </div>
             {/* Table */}
-            <div className="w-full px-3 pb-4 sm:px-4 md:px-6 bg-gray-600 rounded-4xl mt-2">
+            <div className="w-full px-3 pb-4 sm:px-4 md:px-6 bg-gray-600 rounded-4xl mt-2 ">
               <Ltable />
             </div>
           </main>

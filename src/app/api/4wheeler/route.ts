@@ -200,7 +200,6 @@ export async function POST(request: NextRequest) {
             \`user_mob\`,
             \`order_id\`,
             \`vehicle_no\`,
-            \`mobile_no\`,
             \`frontside\`,
             \`backside\`,
             \`status\`,
@@ -208,9 +207,9 @@ export async function POST(request: NextRequest) {
             \`apply_date_time\`,
             \`resposive_date_time\`
           )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
-        [userMobStr, order_id, vehicle_no, mobile_no, frontside, backside, STATUS_PENDING, null, now, null],
+        [userMobStr, order_id, vehicle_no, frontside, backside, STATUS_PENDING, null, now, null],
       );
 
       // -------------------------------------------------

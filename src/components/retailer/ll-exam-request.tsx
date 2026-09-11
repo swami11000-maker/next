@@ -24,6 +24,7 @@ import { toast } from "../ui/toast";
 import { ServiceChargeCard } from "../ui/service-charge-card";
 import { useDataProvider } from "@/hooks/useDataProvider";
 import { emitRetailerDataChanged } from "@/lib/data-events";
+import { apiFetch } from "@/lib/api-client";
 function formatDateForForm(date: Date): string {
   return format(date, "dd-MM-yyyy");
 }
@@ -196,7 +197,7 @@ export default function LLExamRequest() {
     setSearchResults(null);
 
     try {
-      const response = await fetch("/api/ll-exam-request", {
+       const response = await apiFetch("/api/ll-exam-request", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

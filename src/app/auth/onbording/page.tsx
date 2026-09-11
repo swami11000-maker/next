@@ -47,7 +47,6 @@ export default async function Onboarding({
   try {
     const result = await callCheckOrderStatus(orderId);
 
-    console.log("Payment Status Result:", result);
 
     paymentConfirmed = true;
   } catch (err) {

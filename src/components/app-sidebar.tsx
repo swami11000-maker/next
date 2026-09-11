@@ -1,6 +1,6 @@
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import Link from "next/link";
-import { Bike, Car, ClipboardList, FileText, LayoutDashboard, LucideCoins, LucideWorkflow, Phone, Search, Smartphone, Stethoscope, TractorIcon, Vote, Wind } from "lucide-react";
+import { Bike, Car, ClipboardList, CommandIcon, FileText, LayoutDashboard, LucideCoins, LucideWorkflow, Phone, Search, Smartphone, Stethoscope, TractorIcon, Vote, Wind } from "lucide-react";
 import { LogoutButton } from "@/components/logout-button";
 
 const menuItems = [
@@ -70,6 +70,7 @@ const menuItems = [
     items: [
       { title: "Work History", href: "/retailer/history", icon: LucideWorkflow },
       { title: "Payment History", href: "/retailer/transitions", icon: LucideCoins },
+      { title: "Add Money History", href: "/retailer/add-money-history", icon: CommandIcon },
     ],
   },
 ];

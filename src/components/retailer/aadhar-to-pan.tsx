@@ -47,6 +47,7 @@ import PanResultDialog from "../result";
 import { useDataProvider } from "@/hooks/useDataProvider";
 import { ServiceChargeCard } from "../ui/service-charge-card";
 import { emitRetailerDataChanged } from "@/lib/data-events";
+import { apiFetch } from "@/lib/api-client";
 
 /* =========================================================
    ZOD SCHEMA — AADHAAR (12 digits)
@@ -128,8 +129,8 @@ export default function PanFind() {
     setSearchedAadhaar(aadhaar);
 
     try {
-      const response = await fetch(
-        `/api/aadhar-to-pan?aadhaar_no=${encodeURIComponent(aadhaar)}&server=${encodeURIComponent(server)}`,
+       const response = await apiFetch(
+         `/api/aadhar-to-pan?aadhaar_no=${encodeURIComponent(aadhaar)}&server=${encodeURIComponent(server)}`,
         {
           method: "GET",
           cache: "no-store",
@@ -147,7 +148,6 @@ export default function PanFind() {
         throw new Error("Invalid response received from PAN service.");
       }
 
-      console.log("Aadhaar-to-PAN API Response:", apiResult);
 
       // Handle HTTP errors
       if (!response.ok) {

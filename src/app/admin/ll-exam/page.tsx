@@ -6,6 +6,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableHead, TableHeader, TableRow, TableCell } from "@/components/ui/table";
 import type { LlExamRequest } from "@/lib/auth";
+import { apiFetch } from "@/lib/api-client";
 
 const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: "panding", label: "Processing" },
@@ -20,7 +21,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const res = await fetch(path, {
+  const res = await apiFetch(path, {
     headers: { "Content-Type": "application/json", ...options.headers },
     cache: "no-store",
     ...options,

@@ -3,6 +3,7 @@
 import * as React from "react";
 import { ArrowUpRight, Wallet, X } from "lucide-react";
 import { useSearchParams } from "next/navigation";
+import { apiFetch } from "@/lib/api-client";
 
 interface PaymentModalProps {
   onClose: () => void;
@@ -14,10 +15,10 @@ export function PaymentModal({ onClose }: PaymentModalProps) {
   const [amount, setAmount] = React.useState("");
 
   const quickAmounts = [500, 1000, 2000, 5000];
-const searchParams = useSearchParams();
-const orderId = searchParams.get("order_id");
+  const searchParams = useSearchParams();
+  const orderId = searchParams.get("order_id");
 
-console.log("orderId:", orderId);
+
   const handleActivate = async () => {
     if (!amount || Number(amount) <= 0) {
       setError("Please enter a valid amount");
@@ -27,11 +28,8 @@ console.log("orderId:", orderId);
     setLoading(true);
     setError("");
 
-    // ✅ Must happen directly from button click
-    const paymentWindow = window.open("", "_blank");
-
     try {
-      const response = await fetch("/api/payment/addmoney", {
+      const response = await apiFetch("/api/payment/addmoney", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -43,37 +41,31 @@ console.log("orderId:", orderId);
 
       const result = await response.json();
 
-      console.log("Payment Result:", result);
 
       if (!response.ok) {
-        paymentWindow?.close();
-
         throw new Error(result.message || "Failed to initiate payment");
       }
 
-      if (!result.paytm_link) {
-        paymentWindow?.close();
+      // ✅ Prefer hosted payment page, fallback to paytm/upi deep link
+      const redirectUrl =
+        result.payment_url || result.paytm_link || result.bhim_link;
 
+      if (!redirectUrl) {
         throw new Error("Payment URL not received");
       }
 
-      // ✅ Open payment URL in new tab
-      if (paymentWindow) {
-        paymentWindow.location.href = result.paytm_link;
-      } else {
-        // Popup blocked fallback
-        window.location.href = result.paytm_link;
-      }
+      // ✅ Redirect in the SAME tab
+      window.location.href = redirectUrl;
     } catch (err) {
       console.error("Payment error:", err);
-
-      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
-
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Something went wrong. Please try again."
+      );
       setLoading(false);
     }
   };
-
- 
 
   return (
     <div
@@ -96,22 +88,34 @@ console.log("orderId:", orderId);
                 <Wallet className="h-5 w-5 text-[#ff3800]" />
               </div>
 
-              <h2 className="text-xl font-bold tracking-tight text-white">Add money to wallet</h2>
+              <h2 className="text-xl font-bold tracking-tight text-white">
+                Add money to wallet
+              </h2>
 
-              <p className="mt-1.5 text-sm leading-5 text-zinc-500">Enter the amount you'd like to add to your wallet.</p>
+              <p className="mt-1.5 text-sm leading-5 text-zinc-500">
+                Enter the amount you'd like to add to your wallet.
+              </p>
             </div>
 
-            <button type="button" onClick={onClose} className="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-500 transition-colors hover:bg-white/[0.06] hover:text-white">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-500 transition-colors hover:bg-white/[0.06] hover:text-white"
+            >
               <X className="h-4 w-4" />
             </button>
           </div>
 
           {/* Amount */}
           <div className="mt-7">
-            <label className="mb-2 block text-xs font-medium uppercase tracking-wider text-zinc-500">Amount</label>
+            <label className="mb-2 block text-xs font-medium uppercase tracking-wider text-zinc-500">
+              Amount
+            </label>
 
             <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl font-semibold text-zinc-500">₹</span>
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl font-semibold text-zinc-500">
+                ₹
+              </span>
 
               <input
                 type="number"
@@ -134,7 +138,9 @@ console.log("orderId:", orderId);
                 type="button"
                 onClick={() => setAmount(String(value))}
                 className={`rounded-xl border py-2 text-xs font-semibold transition-all ${
-                  amount === String(value) ? "border-[#ff3800]/40 bg-[#ff3800]/10 text-[#ff5a2f]" : "border-white/[0.07] bg-white/[0.03] text-zinc-400 hover:border-white/[0.15] hover:text-white"
+                  amount === String(value)
+                    ? "border-[#ff3800]/40 bg-[#ff3800]/10 text-[#ff5a2f]"
+                    : "border-white/[0.07] bg-white/[0.03] text-zinc-400 hover:border-white/[0.15] hover:text-white"
                 }`}
               >
                 ₹{value.toLocaleString("en-IN")}
@@ -143,7 +149,11 @@ console.log("orderId:", orderId);
           </div>
 
           {/* Error */}
-          {error && <div className="mt-4 rounded-xl border border-red-500/10 bg-red-500/10 px-4 py-3 text-sm text-red-400">{error}</div>}
+          {error && (
+            <div className="mt-4 rounded-xl border border-red-500/10 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+              {error}
+            </div>
+          )}
 
           {/* Actions */}
           <div className="mt-7 flex gap-3">
@@ -163,7 +173,7 @@ console.log("orderId:", orderId);
               className="group flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#ff3800] py-3 text-sm font-semibold text-white shadow-lg shadow-[#ff3800]/20 transition-all hover:bg-[#ff4a19] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading ? (
-                "Processing..."
+                "Redirecting..."
               ) : (
                 <>
                   Continue
@@ -173,7 +183,9 @@ console.log("orderId:", orderId);
             </button>
           </div>
 
-          <p className="mt-4 text-center text-[10px] text-zinc-600">Secure payment • Your wallet will be updated after confirmation</p>
+          <p className="mt-4 text-center text-[10px] text-zinc-600">
+            Secure payment • Your wallet will be updated after confirmation
+          </p>
         </div>
       </div>
     </div>

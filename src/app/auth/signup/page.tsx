@@ -13,6 +13,7 @@ import { Loader2, UserPlus, User, Mail, Phone, Lock, ArrowRight } from "lucide-r
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { apiFetch } from "@/lib/api-client";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
@@ -44,14 +45,13 @@ export default function SignupPage() {
     setError(null);
 
     try {
-      const response = await fetch("/api/auth/signup", {
+      const response = await apiFetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
 
       const result = await response.json();
-console.log(response)
       if (!response.ok) {
         throw new Error(result.message || "Signup failed. Please try again.");
       }

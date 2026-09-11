@@ -4,7 +4,7 @@ import { z } from "zod";
 import { getUserDeatail, runQuery, runTransaction, isServiceEnabled } from "@/lib/auth";
 
 import type { Retailer } from "@/lib/auth";
-import { STATUS_SUCCESS } from "@/lib/statuses";
+import { STATUS_PENDING, STATUS_SUCCESS } from "@/lib/statuses";
 import { generate7DigitNumber } from "@/lib/utils";
 
 // -----------------------------------------------------
@@ -49,12 +49,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // if (!isServiceEnabled(user, "ll_medical")) {
-    //   return NextResponse.json(
-    //     { message: "Learning Exam Medical service is not enabled for your account" },
-    //     { status: 403 }
-    //   );
-    // }
+    if (!isServiceEnabled(user, "ll_medical")) {
+      return NextResponse.json(
+        { message: "Learning Exam Medical service is not enabled for your account" },
+        { status: 403 }
+      );
+    }
 
     // ---------------------------------------------------
     // 2. Parse Request Body
@@ -215,7 +215,7 @@ export async function POST(request: NextRequest) {
             )
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `,
-        [userMobStr, order_id, applicationId, state, dateOfBirth, String(charge), STATUS_SUCCESS, now, null, null],
+        [userMobStr, order_id, applicationId, state, dateOfBirth, String(charge), STATUS_PENDING, now, null, null],
       );
 
       // -----------------------------------------------

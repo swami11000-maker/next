@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { RETAILER_DATA_CHANGED } from "@/lib/data-events";
+import { apiFetch } from "@/lib/api-client";
 
 interface Transaction {
   service_name: string;
@@ -35,7 +36,7 @@ export const PriceSidebar = () => {
       setLoading(true);
       setError("");
 
-      const response = await fetch(API_URL, {
+      const response = await apiFetch(API_URL, {
         method: "GET",
         cache: "no-store",
       });
@@ -49,7 +50,7 @@ export const PriceSidebar = () => {
       const data = result?.data || [];
       setTransactions(data);
       setFiltered(data);
-      setCurrentBalance(result?.current_balance != null ? Number(result.current_balance) : (data.length > 0 ? Number(data[0].new_balance || 0) : 0));
+      setCurrentBalance(result?.current_balance != null ? Number(result.current_balance) : data.length > 0 ? Number(data[0].new_balance || 0) : 0);
     } catch (err: any) {
       console.error("PriceSidebar Error:", err);
       setError(err?.message || "Failed to load transactions");
@@ -127,7 +128,7 @@ export const PriceSidebar = () => {
   ];
 
   return (
-    <Card className="w-full overflow-hidden border-zinc-200 dark:border-zinc-800 shadow-xl rounded-2xl">
+    <Card className="w-full  overflow-hidden border-zinc-200 dark:border-zinc-800 shadow-xl rounded-2xl">
       {/* Gradient Header */}
       <div className="bg-gradient-to-br from-black to-gray-700 p-5 text-white">
         <div className="flex items-center justify-between mb-4">
@@ -137,7 +138,13 @@ export const PriceSidebar = () => {
             </div>
             <span className="font-semibold text-sm tracking-wide">Recent Transactions</span>
           </div>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-white hover:bg-white/20" onClick={fetchTransactions} disabled={loading}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-white hover:bg-white/20"
+            onClick={fetchTransactions}
+            disabled={loading}
+          >
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
           </Button>
         </div>
@@ -163,18 +170,14 @@ export const PriceSidebar = () => {
           <button
             key={f.value}
             onClick={() => setActiveFilter(f.value)}
-            className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-all ${
-              activeFilter === f.value
-                ? "bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100"
-                : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
-            }`}
+            className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-all ${activeFilter === f.value ? "bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100" : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"}`}
           >
             {f.label}
           </button>
         ))}
       </div>
 
-      <CardContent className="p-0">
+      <CardContent className="p-0 ma">
         {loading ? (
           <div className="flex min-h-[180px] items-center justify-center">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -188,7 +191,11 @@ export const PriceSidebar = () => {
               <TrendingDown className="h-6 w-6 text-red-500" />
             </div>
             <p className="text-sm text-destructive font-medium">{error}</p>
-            <Button variant="outline" size="sm" onClick={fetchTransactions}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchTransactions}
+            >
               Try Again
             </Button>
           </div>
@@ -201,7 +208,7 @@ export const PriceSidebar = () => {
             <p className="text-xs text-zinc-400">Transactions will appear here once available</p>
           </div>
         ) : (
-          <div className="max-h-[700px] overflow-y-auto p-3 space-y-2">
+          <div className="max-h-screen overflow-y-auto p-3 space-y-2">
             {filtered.map((transaction, index) => {
               const transferType = getTransferType(transaction.tranfer_type);
               const isCredit = transferType === "credit";
@@ -209,21 +216,11 @@ export const PriceSidebar = () => {
               return (
                 <div
                   key={`${transaction.service_name}-${index}`}
-                  className={`group flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-zinc-900 border transition-all duration-200 cursor-pointer ${
-                    isCredit
-                      ? "border-zinc-100 dark:border-zinc-800 hover:border-emerald-200 dark:hover:border-emerald-900 hover:shadow-md"
-                      : "border-zinc-100 dark:border-zinc-800 hover:border-rose-200 dark:hover:border-rose-900 hover:shadow-md"
-                  }`}
+                  className={`group flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-zinc-900 border transition-all duration-200 cursor-pointer ${isCredit ? "border-zinc-100 dark:border-zinc-800 hover:border-emerald-200 dark:hover:border-emerald-900 hover:shadow-md" : "border-zinc-100 dark:border-zinc-800 hover:border-rose-200 dark:hover:border-rose-900 hover:shadow-md"}`}
                 >
                   {/* Icon with status dot */}
                   <div className="relative shrink-0">
-                    <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                        isCredit ? "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400" : "bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400"
-                      }`}
-                    >
-                      {isCredit ? <ArrowDown className="h-5 w-5" /> : <ArrowUpRight className="h-5 w-5" />}
-                    </div>
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isCredit ? "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400" : "bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400"}`}>{isCredit ? <ArrowDown className="h-5 w-5" /> : <ArrowUpRight className="h-5 w-5" />}</div>
                     <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-zinc-950 ${isCredit ? "bg-emerald-500" : "bg-rose-500"}`} />
                   </div>
 
@@ -242,11 +239,7 @@ export const PriceSidebar = () => {
                     <div className="flex items-center justify-between mt-0.5">
                       <Badge
                         variant="outline"
-                        className={`text-[10px] h-5 px-1.5 ${
-                          isCredit
-                            ? "border-emerald-200 text-emerald-700 dark:border-emerald-900 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30"
-                            : "border-rose-200 text-rose-700 dark:border-rose-900 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30"
-                        }`}
+                        className={`text-[10px] h-5 px-1.5 ${isCredit ? "border-emerald-200 text-emerald-700 dark:border-emerald-900 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30" : "border-rose-200 text-rose-700 dark:border-rose-900 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30"}`}
                       >
                         {transaction.tranfer_type || "-"}
                       </Badge>
@@ -272,8 +265,6 @@ export const PriceSidebar = () => {
           </div>
         )}
       </CardContent>
-
-      
     </Card>
   );
 };

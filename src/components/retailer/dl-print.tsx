@@ -23,6 +23,7 @@ import { ServiceChargeCard } from "../ui/service-charge-card";
 import { cn } from "@/lib/utils";
 import { indianStates } from "@/lib/constate";
 import { emitRetailerDataChanged } from "@/lib/data-events";
+import { apiFetch } from "@/lib/api-client";
 
 /* =========================================================
    ZOD SCHEMA
@@ -127,7 +128,7 @@ export default function DlPrintPage() {
       if (data.cardtype) params.set("cardtype", data.cardtype);
       if (data.state) params.set("state", data.state);
 
-      const response = await fetch(`/api/dl-print?${params.toString()}`, {
+      const response = await apiFetch(`/api/dl-print?${params.toString()}`, {
         method: "GET",
         cache: "no-store",
         headers: {
@@ -143,7 +144,6 @@ export default function DlPrintPage() {
         throw new Error("Invalid response received from DL service.");
       }
 
-      console.log("DL Print API Response:", apiResult);
 
       // Handle HTTP errors
       if (!response.ok) {

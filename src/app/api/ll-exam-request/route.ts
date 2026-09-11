@@ -76,12 +76,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // if (!isServiceEnabled(user, "ll_exam")) {
-    //   return NextResponse.json(
-    //     { message: "LL Exam Request service is not enabled for your account" },
-    //     { status: 403 }
-    //   );
-    // }
+    if (!isServiceEnabled(user, "ll_exam")) {
+      return NextResponse.json(
+        { message: "LL Exam Request service is not enabled for your account" },
+        { status: 403 }
+      );
+    }
 
     // ---------------------------------------------------
     // 2. Parse Request Body

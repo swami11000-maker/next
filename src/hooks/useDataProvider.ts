@@ -1,14 +1,24 @@
 "use client";
 
 import { RetailerData } from "@/lib/type";
+import { apiFetch } from "@/lib/api-client";
 import { useEffect, useState } from "react";
-
-
 
 export const useDataProvider = () => {
   const [retailer, setRetailer] = useState<RetailerData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const logout = async () => {
+    try {
+      await apiFetch("/api/auth/logout", {
+        method: "POST",
+      });
+      setRetailer(null);
+    } catch (err) {
+      console.error("Logout error:", err);
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -18,7 +28,7 @@ export const useDataProvider = () => {
         setLoading(true);
         setError(null);
 
-        const res = await fetch("/api/auth/user", {
+        const res = await apiFetch("/api/auth/user", {
           method: "GET",
           credentials: "include",
           cache: "no-store",
@@ -57,5 +67,6 @@ export const useDataProvider = () => {
     retailer,
     loading,
     error,
+    logout,
   };
 };

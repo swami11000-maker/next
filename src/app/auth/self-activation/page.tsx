@@ -7,6 +7,7 @@ import { CreditCard, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { apiFetch } from "@/lib/api-client";
 
 export default function SelfActivationPage() {
   const [isLoading, setIsLoading] = React.useState(false);
@@ -20,7 +21,7 @@ export default function SelfActivationPage() {
     const paymentWindow = window.open("", "_blank");
 
     try {
-      const response = await fetch("/api/auth/self-activation", {
+      const response = await apiFetch("/api/auth/self-activation", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

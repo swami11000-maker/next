@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { apiFetch } from "@/lib/api-client";
 import {
   Form,
   FormControl,
@@ -188,7 +189,7 @@ export default function VoterMobileLink() {
     setSearchedEpic(epic);
 
     try {
-      const response = await fetch(
+       const response = await apiFetch(
         `/api/voter-mobile-link?epic=${encodeURIComponent(epic)}&mobile=${encodeURIComponent(mobile)}`,
         {
           method: "GET",
@@ -207,7 +208,6 @@ export default function VoterMobileLink() {
         throw new Error("Invalid response received from voter link service.");
       }
 
-      console.log("Voter Link API Response:", apiResult);
 
       // Handle HTTP errors
       if (!response.ok) {

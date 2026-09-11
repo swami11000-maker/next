@@ -38,6 +38,7 @@ import PanResultDialog from "../result";
 import { useDataProvider } from "@/hooks/useDataProvider";
 import { ServiceChargeCard } from "../ui/service-charge-card";
 import { emitRetailerDataChanged } from "@/lib/data-events";
+import { apiFetch } from "@/lib/api-client";
 
 /* =========================================================
    ZOD SCHEMA
@@ -119,7 +120,7 @@ export default function PanDetails() {
     setSearchedPan(panNumber);
 
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `/api/pan_details?panno=${encodeURIComponent(panNumber)}`,
         {
           method: "GET",
@@ -138,7 +139,6 @@ export default function PanDetails() {
         throw new Error("Invalid response received from PAN service.");
       }
 
-      console.log("PAN API Response:", apiResult);
 
       // Handle HTTP errors first
       if (!response.ok) {

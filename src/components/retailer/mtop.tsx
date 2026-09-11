@@ -149,11 +149,6 @@ export default function MobtoPan() {
     setError(null);
     setShowResults(false);
 
-    console.log("PAN Search Request:", {
-      name: data.name,
-      mobileNumber: data.mobileNumber,
-    });
-
     try {
       await new Promise((resolve) => setTimeout(resolve, 1500));
 

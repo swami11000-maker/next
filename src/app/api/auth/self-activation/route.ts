@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUserDeatail, runMutation, runQuery } from "@/lib/auth";
 import type { Retailer } from "@/lib/auth";
 import { generateOrder } from "@/lib/utils";
+import { redirect } from "next/dist/server/api-utils";
 
 const GATEWAY_BASE = (process.env.GATEWAY_URL || "https://pay.a1ejankari.com/api").replace(/\/+$/, "");
 const GATEWAY_USER_TOKEN = process.env.GATEWAY_USER_TOKEN || "";
@@ -90,7 +91,7 @@ export async function callCheckOrderStatus(orderId: string) {
     cb.result.date,          // date_time
   ]
 );
-  return await 'Your payment has been confirmed.';
+  return NextResponse.redirect('/retailer');
 }else{
   return 'Your payment is still pending. Please check again later. contact to Admin';
 }

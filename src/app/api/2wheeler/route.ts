@@ -8,10 +8,6 @@ import type { Retailer } from "@/lib/auth";
 
 import { generate7DigitNumber } from "@/lib/utils";
 
-// -----------------------------------------------------
-// Validation Schema
-// -----------------------------------------------------
-
 const submitSchema = z.object({
   vehicle_no: z.string().min(4, { message: "Vehicle number is required" }),
 
@@ -47,12 +43,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // if (!isServiceEnabled(user, "2wheeler_puc")) {
-    //   return NextResponse.json(
-    //     { message: "2 Wheeler PUC service is not enabled for your account" },
-    //     { status: 403 }
-    //   );
-    // }
+    if (!isServiceEnabled(user, "2wheeler_puc")) {
+      return NextResponse.json({ message: "2 Wheeler PUC service is not enabled for your account" }, { status: 403 });
+    }
 
     // ---------------------------------------------------
     // 2. Parse Request Body
@@ -201,7 +194,6 @@ export async function POST(request: NextRequest) {
             \`user_mob\`,
             \`order_id\`,
             \`vehicle_no\`,
-            \`mobile_no\`,
             \`frontside\`,
             \`backside\`,
             \`status\`,
@@ -209,9 +201,9 @@ export async function POST(request: NextRequest) {
             \`apply_date_time\`,
             \`resposive_date_time\`
           )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
-        [userMobStr, order_id, vehicle_no, mobile_no, frontside, backside, STATUS_PENDING, null, now, null],
+        [mobile_no, order_id, vehicle_no, frontside, backside, STATUS_PENDING, null, now, null],
       );
 
       // -------------------------------------------------
@@ -237,7 +229,7 @@ export async function POST(request: NextRequest) {
           )
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
-        [order_id, userMobStr, vehicle_no, SERVICE_NAME, STATUS_PENDING, oldBalance, charge, newBalance, "debit", null, now, ""],
+        [order_id, userMobStr, vehicle_no, SERVICE_NAME, STATUS_PENDING, oldBalance, charge, newBalance, "debit", null, now, SERVICE_NAME],
       );
 
       // -------------------------------------------------
@@ -261,7 +253,7 @@ export async function POST(request: NextRequest) {
           )
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
-        [order_id, userMobStr, SERVICE_NAME, oldBalance, charge, newBalance, "debit", STATUS_SUCCESS, now, ""],
+        [order_id, userMobStr, SERVICE_NAME, oldBalance, charge, newBalance, "debit", STATUS_SUCCESS, now, SERVICE_NAME],
       );
 
       // -------------------------------------------------

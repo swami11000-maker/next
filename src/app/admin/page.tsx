@@ -32,6 +32,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
+import { apiFetch } from "@/lib/api-client";
 
 interface DashboardData {
   retailers: {
@@ -85,7 +86,7 @@ export default function AdminDashboard() {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch("/api/admin/dashboard", { cache: "no-store" });
+      const res = await apiFetch("/api/admin/dashboard", { cache: "no-store" });
       if (!res.ok) throw new Error("Failed to fetch dashboard data");
       const json = await res.json();
       if (json.success) setData(json.data);

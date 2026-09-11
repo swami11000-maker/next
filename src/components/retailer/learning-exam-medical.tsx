@@ -34,6 +34,7 @@ import { Calendar } from "../ui/calendar";
 import { ServiceChargeCard } from "../ui/service-charge-card";
 import { useDataProvider } from "@/hooks/useDataProvider";
 import { emitRetailerDataChanged } from "@/lib/data-events";
+import { apiFetch } from "@/lib/api-client";
 
 const fieldClass = cn(
   "h-12 w-full rounded-xl",
@@ -236,7 +237,7 @@ export default function LearningExamMedical() {
     });
 
     try {
-      const response = await fetch("/api/learning-exam-medical", {
+      const response = await apiFetch("/api/learning-exam-medical", {
         method: "POST",
 
         headers: {

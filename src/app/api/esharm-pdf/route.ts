@@ -74,9 +74,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // if (!isServiceEnabled(user, "esharm_pdf")) {
-    //   return NextResponse.json({ message: "E-Sharm PDF service is not enabled for your account" }, { status: 403 });
-    // }
+    if (!isServiceEnabled(user, "esharm_pdf")) {
+      return NextResponse.json({ message: "E-Sharm PDF service is not enabled for your account" }, { status: 403 });
+    }
 
     // --------------------------------------------------
     // 5. Get API Key
@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
     // --------------------------------------------------
     // 6. Get API Base URL
     // --------------------------------------------------
-    const apiBaseUrl = process.env.DARKXEN_URL;
+    const apiBaseUrl = `${process.env.DARKXEN_URL}/AADHAR/`;
     if (!apiBaseUrl) {
       console.error("DARKXEN_URL is missing");
       return NextResponse.json(
@@ -144,7 +144,6 @@ export async function GET(request: NextRequest) {
     const base = `${baseUrl}uid_eshram_pdf_verification.php`;
     const url = `${base}?apiKey=${encodeURIComponent(apiKey)}&aadhaar_no=${encodeURIComponent(aadhaar_no)}&dob=${dob}`;
 
-    console.log("Calling E-Sharm API", url);
 
     // --------------------------------------------------
     // 10. Call External API
@@ -154,7 +153,6 @@ export async function GET(request: NextRequest) {
       cache: "no-store",
       headers: { Accept: "application/json" },
     });
-    console.log("response status:", response.status);
 
     // --------------------------------------------------
     // 11. Read Response
@@ -333,7 +331,6 @@ export async function GET(request: NextRequest) {
       // api_response: data,            // Optional: poora raw response alag se
     };
 
-    console.log("E-Sharm PDF Response:", responsePayload);
 
     return NextResponse.json(
       responsePayload,
