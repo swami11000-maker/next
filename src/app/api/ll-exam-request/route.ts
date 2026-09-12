@@ -9,7 +9,7 @@ import {
 } from "@/lib/auth";
 
 import type { Retailer } from "@/lib/auth";
-import { STATUS_SUCCESS } from "@/lib/statuses";
+import {STATUS_PENDING, STATUS_SUCCESS } from "@/lib/statuses";
 import { generate7DigitNumber } from "@/lib/utils";
 
 // -----------------------------------------------------
@@ -286,7 +286,7 @@ export async function POST(request: NextRequest) {
             applicationNumber,
             password,
             dateOfBirth,
-            STATUS_SUCCESS,
+            STATUS_PENDING,
             now,
             examPin || "",
             state,
