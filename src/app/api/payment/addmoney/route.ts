@@ -5,7 +5,7 @@ import { generateOrder } from "@/lib/utils";
 
 const GATEWAY_BASE = (process.env.GATEWAY_URL || "https://pay.a1ejankari.com/api").replace(/\/+$/, "");
 const GATEWAY_USER_TOKEN = process.env.GATEWAY_USER_TOKEN || "";
-const REDIRECT_URL = "http://localhost:3000";
+const REDIRECT_URL = process.env.DOMAIN_URL || "http://localhost:3000" ;
 
 function buildGatewayFormPayload(payload: Record<string, string>): URLSearchParams {
   const params = new URLSearchParams();
@@ -39,7 +39,7 @@ export async function callCheckOrderStatus(orderId: string, request: Request) {
       throw new Error("User not found");
     }
     if (user.lastaddmoneyid === orderId) {
-      return NextResponse.redirect("http://localhost:3000/retailer");
+      return NextResponse.redirect(`${REDIRECT_URL}/retailer`);
     }
     await runMutation("UPDATE retailer SET balance = ? ,lastaddmoneyid = ? WHERE mobile = ? LIMIT 1", [Number(cb.result.amount) + Number(user.balance), orderId, cb.result.customer_mobile]);
     await runMutation(
@@ -80,7 +80,7 @@ export async function callCheckOrderStatus(orderId: string, request: Request) {
         cb.result.date, // date_time
       ],
     );
-    return NextResponse.redirect("http://localhost:3000/retailer");
+    return NextResponse.redirect(`${REDIRECT_URL}/retailer`);
   } else {
     return "Your payment is still pending. Please check again later. contact to Admin";
   }
@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
 
     const result = await callCheckOrderStatus(orderId, request);
 
-    return NextResponse.redirect("http://localhost:3000/retailer");
+    return NextResponse.redirect(`${REDIRECT_URL}/retailer`);
   } catch (error) {
     console.error("Payment status error:", error);
 
@@ -130,8 +130,8 @@ export async function POST(request: NextRequest) {
       user_token: GATEWAY_USER_TOKEN,
       amount: amount.toString(),
       order_id: uniqueOrderId.toString(),
-      redirect_url: `http://localhost:3000/api/payment/addmoney?order_id=${uniqueOrderId}`,
-      callback_url: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/payment/callback`,
+      redirect_url: `${REDIRECT_URL}/api/payment/addmoney?order_id=${uniqueOrderId}`,
+      callback_url: `${process.env.NEXT_PUBLIC_APP_URL || REDIRECT_URL}/api/payment/callback`,
       remark1: `amount:${amount}, type:${paymentType}`,
       remark2: `user_id:${user.id}`,
     });
