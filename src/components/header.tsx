@@ -106,14 +106,6 @@ const Header = () => {
                           <User className="h-4 w-4" />
                           Profile
                         </Link>
-                        <Link
-                          href="/retailer/settings"
-                          className="flex items-center gap-2 px-3 py-2 text-sm text-zinc-300 hover:bg-white/[0.06] rounded-lg transition-colors"
-                          onClick={() => setShowProfileMenu(false)}
-                        >
-                          <Settings className="h-4 w-4" />
-                          Settings
-                        </Link>
                         <div className="h-px bg-white/[0.06] my-1" />
                         <button
                           onClick={() => {
