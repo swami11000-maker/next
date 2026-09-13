@@ -209,7 +209,7 @@ export async function POST(request: NextRequest) {
           )
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
-        [userMobStr, order_id, vehicle_no, frontside, backside, STATUS_PENDING, null, now, null],
+        [userMobStr, order_id, vehicle_no, frontside, backside, 'panding', null, now, null],
       );
 
       // -------------------------------------------------
@@ -235,7 +235,7 @@ export async function POST(request: NextRequest) {
           )
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
-        [order_id, userMobStr, SERVICE_ID, SERVICE_NAME, STATUS_PENDING, oldBalance, charge, newBalance, "debit", null, now, ""],
+        [order_id, userMobStr, SERVICE_ID, SERVICE_NAME, 'panding', oldBalance, charge, newBalance, "debit", null, now, ""],
       );
 
       // -------------------------------------------------
