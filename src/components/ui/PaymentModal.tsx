@@ -125,7 +125,7 @@ export function PaymentModal({ onClose }: PaymentModalProps) {
                 min="1"
                 step="1"
                 autoFocus
-                className="w-full rounded-2xl border border-white/[0.08] bg-white/[0.04] py-4 pl-10 pr-4 text-2xl font-bold text-white outline-none transition-all placeholder:text-zinc-700 focus:border-[#ff3800]/50 focus:bg-white/[0.06] focus:ring-4 focus:ring-[#ff3800]/10"
+                className="w-full rounded-2xl border border-white/[0.08] bg-white/[0.04] py-4 pl-10 pr-4 text-2xl font-bold text-white outline-none transition-all placeholder:text-zinc-700 focus:border-[#ff3800]/50 focus:bg-white/[0.08] focus:ring-1 focus:ring-[#ff3800]/20"
               />
             </div>
           </div>
@@ -161,7 +161,7 @@ export function PaymentModal({ onClose }: PaymentModalProps) {
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="flex-1 rounded-xl border border-white/[0.08] bg-white/[0.03] py-3 text-sm font-semibold text-zinc-300 transition-all hover:bg-white/[0.07] hover:text-white disabled:opacity-50"
+              className="flex-1 rounded-xl border border-white/[0.08] bg-white/[0.03] py-3 text-sm font-semibold text-zinc-300 transition-all hover:bg-white/[0.07] hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
@@ -170,7 +170,7 @@ export function PaymentModal({ onClose }: PaymentModalProps) {
               type="button"
               onClick={handleActivate}
               disabled={loading}
-              className="group flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#ff3800] py-3 text-sm font-semibold text-white shadow-lg shadow-[#ff3800]/20 transition-all hover:bg-[#ff4a19] disabled:cursor-not-allowed disabled:opacity-50"
+              className="group flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#ff3800] py-3 text-sm font-semibold text-white shadow-lg shadow-[#ff3800]/20 transition-all hover:bg-[#ff5a2f] disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
             >
               {loading ? (
                 "Redirecting..."
