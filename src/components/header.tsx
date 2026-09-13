@@ -1,7 +1,7 @@
 "use client";
 
 import { useDataProvider } from "@/hooks/useDataProvider";
-import { Wallet, User, Plus, Bell, Menu, X, LogOut, Settings, LayoutDashboard } from "lucide-react";
+import { Wallet, User, Plus, Bell, Menu, X, LogOut, Settings } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { PaymentModal } from "./ui/PaymentModal";
 import Link from "next/link";
@@ -27,7 +27,7 @@ const Header = () => {
 
   return (
     <>
-      <header className="sticky top-0 z-50 w-full bg-gradient-to-br from-black to-gray-700 backdrop-blur-xl border-b">
+      <header className="sticky top-0 z-50 w-full bg-gradient-to-br from-black to-gray-700 backdrop-blur-xl border-b border-white/[0.06]">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-[72px] items-center justify-between">
             {/* Logo */}
@@ -50,12 +50,10 @@ const Header = () => {
 
             {/* Right section */}
             <div className="flex items-center gap-2 sm:gap-4">
-              
-
               {/* Add Money */}
               <button
                 onClick={() => setShowPaymentModal(true)}
-                className="group flex items-center gap-2 rounded-xl bg-[#ff3800] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_8px_25px_rgba(255,56,0,0.2)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#ff4a19] hover:shadow-[0_12px_30px_rgba(255,56,0,0.3)] active:translate-y-0"
+                className="group flex items-center gap-2 rounded-xl bg-[#ff3800] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_8px_25px_rgba(255,56,0,0.2)] transition-all duration-200 hover:bg-[#ff5a2f] active:scale-95"
               >
                 <Plus className="h-4 w-4 transition-transform group-hover:rotate-90" />
                 <span className="hidden sm:inline">Add Money</span>
@@ -74,7 +72,7 @@ const Header = () => {
               >
                 <button
                   onClick={() => setShowProfileMenu(!showProfileMenu)}
-                  className="flex items-center gap-3 border-l border-white/[0.08] pl-3 sm:pl-4"
+                  className="flex items-center gap-3 border-l border-white/[0.08] pl-3 sm:pl-4 hover:opacity-80 transition-opacity"
                 >
                   <div className="relative">
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-zinc-700 to-zinc-900 ring-1 ring-white/10">
@@ -105,6 +103,14 @@ const Header = () => {
                         >
                           <User className="h-4 w-4" />
                           Profile
+                        </Link>
+                        <Link
+                          href="/retailer/settings"
+                          className="flex items-center gap-2 px-3 py-2 text-sm text-zinc-300 hover:bg-white/[0.06] rounded-lg transition-colors"
+                          onClick={() => setShowProfileMenu(false)}
+                        >
+                          <Settings className="h-4 w-4" />
+                          Settings
                         </Link>
                         <div className="h-px bg-white/[0.06] my-1" />
                         <button
