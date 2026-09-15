@@ -3,67 +3,134 @@
 import * as React from "react";
 import { useForm } from "react-hook-form";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Loader2, CheckCircle2, AlertCircle, ArrowRight, Car, Palette, CreditCard, FileText, Download, Eye, X, User, Hash, Wallet } from "lucide-react";
+import {
+  Search,
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
+  ArrowRight,
+  Car,
+  Palette,
+  CreditCard,
+  FileText,
+  Download,
+  Eye,
+  X,
+  User,
+  Hash,
+  Wallet,
+} from "lucide-react";
+
 import { Button } from "@/components/ui/button";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 
 import { Input } from "@/components/ui/input";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert";
+
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
+
 import { useDataProvider } from "@/hooks/useDataProvider";
 import { ServiceChargeCard } from "../ui/service-charge-card";
 import { emitRetailerDataChanged } from "@/lib/data-events";
 import { apiFetch } from "@/lib/api-client";
 
 /* =========================================================
-   API RESPONSE TYPE
+   TYPES
 ========================================================= */
+
+type RcFormValues = {
+  rcNumber: string;
+  cardColorType: "new" | "old";
+  cardType: "with-chip" | "without-chip";
+};
 
 type RcApiResponse = {
   success: boolean;
   message?: string;
+
   order_id?: string;
   rcno?: string;
   name?: string;
   application_no?: string;
+
   pdf?: string;
+
   old_balance?: number;
   new_balance?: number;
   charge?: number;
+
   status?: string | number;
+
+  [key: string]: unknown;
 };
 
+/* =========================================================
+   COMPONENT
+========================================================= */
 
 export default function RcPdf() {
   const [isLoading, setIsLoading] = React.useState(false);
 
-  const [result, setResult] = React.useState<RcApiResponse | null>(null);
+  const [result, setResult] =
+    React.useState<RcApiResponse | null>(null);
 
   const [showPopup, setShowPopup] = React.useState(false);
 
-  const [error, setError] = React.useState<string | null>(null);
+  const [error, setError] =
+    React.useState<string | null>(null);
+
   const { retailer } = useDataProvider();
 
   /* =========================================================
      FORM
   ========================================================= */
 
-  const form = useForm({
-
+  const form = useForm<RcFormValues>({
     defaultValues: {
       rcNumber: "",
-      cardColorType: "New Background",
-      cardType: "Chip",
+      cardColorType: "new",
+      cardType: "with-chip",
     },
   });
 
   /* =========================================================
-     SUBMIT - GET API
+     SUBMIT
   ========================================================= */
 
-  const onSubmit = async (data: any) => {
+  const onSubmit = async (data: RcFormValues) => {
+    const rcNumber = data.rcNumber.trim().toUpperCase();
+
+    if (!rcNumber) {
+      setError("Please enter RC number.");
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     setResult(null);
@@ -71,13 +138,14 @@ export default function RcPdf() {
 
     try {
       const params = new URLSearchParams({
-        rcNumber: data.rcNumber.trim().toUpperCase(),
+        rcNumber,
         cardColorType: data.cardColorType,
         cardType: data.cardType,
       });
 
       const apiUrl = `/api/rc-print?${params.toString()}`;
 
+      console.log("RC Print Request:", apiUrl);
 
       const response = await apiFetch(apiUrl, {
         method: "GET",
@@ -87,37 +155,65 @@ export default function RcPdf() {
         cache: "no-store",
       });
 
-      const apiResult: RcApiResponse = await response.json();
-
-
       /* =====================================================
-         404 / FAILED
+         SAFE JSON PARSING
       ===================================================== */
 
-      if (!response.ok || String(apiResult.status) === "404") {
-        throw new Error(apiResult.message || "RC verification failed");
+      let apiResult: RcApiResponse;
+
+      try {
+        apiResult = await response.json();
+      } catch {
+        throw new Error(
+          `Invalid server response (${response.status})`
+        );
+      }
+
+      console.log("RC Print Response:", apiResult);
+
+      /* =====================================================
+         API ERROR
+      ===================================================== */
+
+      if (!response.ok) {
+        throw new Error(
+          apiResult?.message ||
+            `RC verification failed (${response.status})`
+        );
       }
 
       /* =====================================================
-         200 / SUCCESS
+         SUCCESS
       ===================================================== */
 
-      if (String(apiResult.status) === "200") {
+      if (apiResult.success === true) {
         setResult(apiResult);
-
-        // Show animated popup
         setShowPopup(true);
 
+        /*
+         * Refresh retailer balance/data.
+         */
         emitRetailerDataChanged();
 
         return;
       }
 
-      throw new Error(apiResult.message || "Unable to verify RC");
+      /* =====================================================
+         FAILED RESPONSE
+      ===================================================== */
+
+      throw new Error(
+        apiResult?.message ||
+          "RC verification failed. Please try again."
+      );
     } catch (err) {
       console.error("RC PDF API Error:", err);
 
-      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Something went wrong. Please try again."
+      );
     } finally {
       setIsLoading(false);
     }
@@ -130,8 +226,8 @@ export default function RcPdf() {
   const resetSearch = () => {
     form.reset({
       rcNumber: "",
-      cardColorType: "New Background",
-      cardType: "Chip",
+      cardColorType: "new",
+      cardType: "with-chip",
     });
 
     setResult(null);
@@ -140,25 +236,213 @@ export default function RcPdf() {
   };
 
   /* =========================================================
-     DOWNLOAD PDF
+     PDF HELPERS
   ========================================================= */
 
-  const downloadPdf = () => {
+  const normalizePdfSource = (pdf: string) => {
+    if (!pdf) return null;
+
+    const value = pdf.trim();
+
+    if (!value) return null;
+
+    /*
+     * Already a data URL
+     */
+    if (value.startsWith("data:")) {
+      return value;
+    }
+
+    /*
+     * Normal HTTP/HTTPS URL
+     */
+    if (
+      value.startsWith("http://") ||
+      value.startsWith("https://") ||
+      value.startsWith("blob:")
+    ) {
+      return value;
+    }
+
+    /*
+     * Raw Base64 PDF
+     *
+     * PDF base64 usually starts with JVBERi
+     */
+    if (
+      value.startsWith("JVBER") ||
+      value.length > 100
+    ) {
+      return `data:application/pdf;base64,${value}`;
+    }
+
+    return value;
+  };
+
+  /* =========================================================
+     VIEW PDF
+  ========================================================= */
+
+  const viewPdf = () => {
     if (!result?.pdf) {
+      setError("PDF document is not available.");
       return;
     }
 
-    const link = document.createElement("a");
+    const pdfSource = normalizePdfSource(result.pdf);
 
-    link.href = result.pdf;
+    if (!pdfSource) {
+      setError("Invalid PDF document.");
+      return;
+    }
 
-    link.download = `${result.rcno || "RC"}-Document.pdf`;
+    try {
+      window.open(
+        pdfSource,
+        "_blank",
+        "noopener,noreferrer"
+      );
+    } catch (err) {
+      console.error("PDF View Error:", err);
+      setError("Unable to open PDF.");
+    }
+  };
 
-    document.body.appendChild(link);
+  /* =========================================================
+     DOWNLOAD PDF
+  ========================================================= */
 
-    link.click();
+  const downloadPdf = async () => {
+    if (!result?.pdf) {
+      setError("PDF document is not available.");
+      return;
+    }
 
-    document.body.removeChild(link);
+    const pdfSource = normalizePdfSource(result.pdf);
+
+    if (!pdfSource) {
+      setError("Invalid PDF document.");
+      return;
+    }
+
+    const fileName = `${
+      result.rcno || "RC"
+    }-Document.pdf`;
+
+    try {
+      /*
+       * DATA URL
+       */
+      if (pdfSource.startsWith("data:")) {
+        const [header, base64] = pdfSource.split(",");
+
+        if (!base64) {
+          throw new Error("Invalid PDF base64 data");
+        }
+
+        const mimeMatch =
+          header.match(/data:(.*?);base64/);
+
+        const mimeType =
+          mimeMatch?.[1] || "application/pdf";
+
+        const binaryString = window.atob(base64);
+
+        const len = binaryString.length;
+
+        const bytes = new Uint8Array(len);
+
+        for (let i = 0; i < len; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+
+        const blob = new Blob([bytes], {
+          type: mimeType,
+        });
+
+        const blobUrl =
+          window.URL.createObjectURL(blob);
+
+        const link =
+          document.createElement("a");
+
+        link.href = blobUrl;
+        link.download = fileName;
+
+        document.body.appendChild(link);
+
+        link.click();
+
+        link.remove();
+
+        window.URL.revokeObjectURL(blobUrl);
+
+        return;
+      }
+
+      /*
+       * NORMAL URL
+       */
+      if (
+        pdfSource.startsWith("http://") ||
+        pdfSource.startsWith("https://") ||
+        pdfSource.startsWith("blob:")
+      ) {
+        const response = await fetch(pdfSource);
+
+        if (!response.ok) {
+          throw new Error("Unable to fetch PDF");
+        }
+
+        const blob = await response.blob();
+
+        const blobUrl =
+          window.URL.createObjectURL(blob);
+
+        const link =
+          document.createElement("a");
+
+        link.href = blobUrl;
+        link.download = fileName;
+
+        document.body.appendChild(link);
+
+        link.click();
+
+        link.remove();
+
+        window.URL.revokeObjectURL(blobUrl);
+
+        return;
+      }
+
+      throw new Error("Unsupported PDF format");
+    } catch (err) {
+      console.error("PDF Download Error:", err);
+
+      /*
+       * Last fallback
+       */
+      try {
+        const link =
+          document.createElement("a");
+
+        link.href = pdfSource;
+        link.download = fileName;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+
+        document.body.appendChild(link);
+
+        link.click();
+
+        link.remove();
+      } catch {
+        setError(
+          "Unable to download PDF. Please use View PDF."
+        );
+      }
+    }
   };
 
   /* =========================================================
@@ -204,18 +488,31 @@ export default function RcPdf() {
 
   return (
     <>
-      <div className=" px-4 sm:px-6 lg:px-8">
-        <motion.div initial="hidden" animate="visible" variants={containerVariants} className="max-w-2xl mx-auto">
+      <div className="px-4 sm:px-6 lg:px-8">
+        <motion.div
+          initial="hidden"
+          animate="visible"
+          variants={containerVariants}
+          className="max-w-2xl mx-auto"
+        >
           {/* =================================================
               HEADER
           ================================================= */}
 
-          <motion.div variants={itemVariants} className="text-center mb-10">
+          <motion.div
+            variants={itemVariants}
+            className="text-center mb-10"
+          >
             <h1 className="text-4xl sm:text-5xl font-bold text-slate-900 dark:text-white mb-2 tracking-tight">
-              RC <span className="text-[#ff3800]">PDF</span>
+              RC{" "}
+              <span className="text-[#ff3800]">
+                PDF
+              </span>
             </h1>
 
-            <p className="text-slate-500 dark:text-gray-400 text-lg">Generate your vehicle RC PDF</p>
+            <p className="text-slate-500 dark:text-gray-400 text-lg">
+              Generate your vehicle RC PDF
+            </p>
           </motion.div>
 
           {/* =================================================
@@ -238,21 +535,66 @@ export default function RcPdf() {
               "
             >
               <CardHeader className="px-4 pb-6 sm:px-6">
-                <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 dark:border-white/10 sm:flex-row sm:items-center sm:justify-between">
-                  <CardTitle className="flex items-center gap-2 text-lg font-semibold text-slate-800 dark:text-white sm:text-xl">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#ff3800]/10">
+                <div
+                  className="
+                    flex
+                    flex-col
+                    gap-4
+                    border-b
+                    border-slate-100
+                    pb-5
+                    dark:border-white/10
+                    sm:flex-row
+                    sm:items-center
+                    sm:justify-between
+                  "
+                >
+                  <CardTitle
+                    className="
+                      flex
+                      items-center
+                      gap-2
+                      text-lg
+                      font-semibold
+                      text-slate-800
+                      dark:text-white
+                      sm:text-xl
+                    "
+                  >
+                    <span
+                      className="
+                        flex
+                        h-9
+                        w-9
+                        shrink-0
+                        items-center
+                        justify-center
+                        rounded-xl
+                        bg-[#ff3800]/10
+                      "
+                    >
                       <Car className="h-5 w-5 text-[#ff3800]" />
                     </span>
 
                     <span>Enter Details</span>
                   </CardTitle>
 
-                  <ServiceChargeCard charge={retailer?.rc_print_fee ?? 0} serviceName="RC PDF" className="w-full sm:w-auto sm:max-w-none" />
+                  <ServiceChargeCard
+                    charge={retailer?.rc_print_fee ?? 0}
+                    serviceName="RC PDF"
+                    className="w-full sm:w-auto sm:max-w-none"
+                  />
                 </div>
               </CardHeader>
+
               <CardContent className="px-0">
                 <Form {...(form as any)}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                  <form
+                    onSubmit={form.handleSubmit(
+                      onSubmit
+                    )}
+                    className="space-y-6"
+                  >
                     {/* =========================================
                         RC NUMBER
                     ========================================= */}
@@ -262,10 +604,22 @@ export default function RcPdf() {
                       name="rcNumber"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-slate-700 dark:text-gray-300 flex items-center gap-2">
+                          <FormLabel
+                            className="
+                              text-slate-700
+                              dark:text-gray-300
+                              flex
+                              items-center
+                              gap-2
+                            "
+                          >
                             <Car className="h-4 w-4 text-[#ff3800]" />
+
                             RC Number
-                            <span className="text-[#ff3800]">*</span>
+
+                            <span className="text-[#ff3800]">
+                              *
+                            </span>
                           </FormLabel>
 
                           <FormControl>
@@ -292,10 +646,14 @@ export default function RcPdf() {
                                 transition-all
                               "
                               onChange={(e) => {
-                                const value = e.target.value
-                                  .toUpperCase()
-                                  .replace(/[^A-Z0-9 -]/g, "")
-                                  .slice(0, 20);
+                                const value =
+                                  e.target.value
+                                    .toUpperCase()
+                                    .replace(
+                                      /[^A-Z0-9 -]/g,
+                                      ""
+                                    )
+                                    .slice(0, 20);
 
                                 field.onChange(value);
                               }}
@@ -316,21 +674,44 @@ export default function RcPdf() {
                       name="cardColorType"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-slate-700 dark:text-gray-300 flex items-center gap-2">
+                          <FormLabel
+                            className="
+                              text-slate-700
+                              dark:text-gray-300
+                              flex
+                              items-center
+                              gap-2
+                            "
+                          >
                             <Palette className="h-4 w-4 text-[#ff3800]" />
+
                             Card Color Type
-                            <span className="text-[#ff3800]">*</span>
+
+                            <span className="text-[#ff3800]">
+                              *
+                            </span>
                           </FormLabel>
 
                           <FormControl>
-                            <Select>
-                              <SelectTrigger className="w-full">
-                                <SelectValue className={'w-full'} placeholder="Theme" />
+                            <Select
+                              value={field.value}
+                              onValueChange={
+                                field.onChange
+                              }
+                            >
+                              <SelectTrigger className="w-full h-12 rounded-xl">
+                                <SelectValue placeholder="Select card color" />
                               </SelectTrigger>
-                              <SelectContent className={'w-full'} >
-                                <SelectGroup className={'w-full'} >
-                                  <SelectItem value="New Background">New Background</SelectItem>
-                                  <SelectItem value="Old Background">Old Background</SelectItem>
+
+                              <SelectContent>
+                                <SelectGroup>
+                                  <SelectItem value="new">
+                                    New Background
+                                  </SelectItem>
+
+                                  <SelectItem value="old">
+                                    Old Background
+                                  </SelectItem>
                                 </SelectGroup>
                               </SelectContent>
                             </Select>
@@ -350,21 +731,44 @@ export default function RcPdf() {
                       name="cardType"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-slate-700 dark:text-gray-300 flex items-center gap-2">
+                          <FormLabel
+                            className="
+                              text-slate-700
+                              dark:text-gray-300
+                              flex
+                              items-center
+                              gap-2
+                            "
+                          >
                             <CreditCard className="h-4 w-4 text-[#ff3800]" />
+
                             Select Card Type
-                            <span className="text-[#ff3800]">*</span>
+
+                            <span className="text-[#ff3800]">
+                              *
+                            </span>
                           </FormLabel>
 
                           <FormControl>
-                            <Select>
-                              <SelectTrigger  className={'w-full'}>
-                                <SelectValue  className={'w-full'} placeholder="Theme" />
+                            <Select
+                              value={field.value}
+                              onValueChange={
+                                field.onChange
+                              }
+                            >
+                              <SelectTrigger className="w-full h-12 rounded-xl">
+                                <SelectValue placeholder="Select card type" />
                               </SelectTrigger>
-                              <SelectContent >
-                                <SelectGroup  className={'w-full'}>
-                                  <SelectItem value="Chip">Chip</SelectItem>
-                                  <SelectItem value="Non-Chip">Non-Chip</SelectItem>
+
+                              <SelectContent>
+                                <SelectGroup>
+                                  <SelectItem value="with-chip">
+                                    Chip
+                                  </SelectItem>
+
+                                  <SelectItem value="without-chip">
+                                    Non-Chip
+                                  </SelectItem>
                                 </SelectGroup>
                               </SelectContent>
                             </Select>
@@ -406,7 +810,9 @@ export default function RcPdf() {
                         ) : (
                           <>
                             <Search className="mr-2 h-4 w-4 group-hover:scale-110 transition-transform" />
+
                             Generate RC PDF
+
                             <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
                           </>
                         )}
@@ -474,15 +880,23 @@ export default function RcPdf() {
                 >
                   <AlertCircle className="h-4 w-4" />
 
-                  <AlertTitle>Request Failed</AlertTitle>
+                  <AlertTitle>
+                    Request Failed
+                  </AlertTitle>
 
-                  <AlertDescription>{error}</AlertDescription>
+                  <AlertDescription>
+                    {error}
+                  </AlertDescription>
                 </Alert>
               </motion.div>
             )}
           </AnimatePresence>
         </motion.div>
       </div>
+
+      {/* =====================================================
+          SUCCESS POPUP
+      ===================================================== */}
 
       <AnimatePresence>
         {showPopup && result && (
@@ -501,7 +915,9 @@ export default function RcPdf() {
               bg-black/60
               backdrop-blur-md
             "
-            onClick={() => setShowPopup(false)}
+            onClick={() =>
+              setShowPopup(false)
+            }
           >
             <motion.div
               initial={{
@@ -524,7 +940,9 @@ export default function RcPdf() {
                 stiffness: 300,
                 damping: 25,
               }}
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) =>
+                e.stopPropagation()
+              }
               className="
                 relative
                 w-full
@@ -548,7 +966,9 @@ export default function RcPdf() {
 
               <button
                 type="button"
-                onClick={() => setShowPopup(false)}
+                onClick={() =>
+                  setShowPopup(false)
+                }
                 className="
                   absolute
                   right-4
@@ -584,6 +1004,7 @@ export default function RcPdf() {
                     className="
                       h-12
                       w-12
+                      shrink-0
                       rounded-2xl
                       bg-green-500/10
                       flex
@@ -594,10 +1015,15 @@ export default function RcPdf() {
                     <CheckCircle2 className="h-7 w-7 text-green-500" />
                   </motion.div>
 
-                  <div>
-                    <h2 className="text-xl font-bold text-slate-900 dark:text-white">RC Verified</h2>
+                  <div className="min-w-0">
+                    <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+                      RC Verified
+                    </h2>
 
-                    <p className="text-sm text-slate-500 dark:text-gray-400">{result.message || "RC verification successful"}</p>
+                    <p className="text-sm text-slate-500 dark:text-gray-400 break-words">
+                      {result.message ||
+                        "RC verification successful"}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -622,10 +1048,15 @@ export default function RcPdf() {
                     <div className="flex items-center gap-2 mb-2">
                       <Car className="h-4 w-4 text-[#ff3800]" />
 
-                      <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-gray-400">RC Number</span>
+                      <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-gray-400">
+                        RC Number
+                      </span>
                     </div>
 
-                    <p className="font-bold text-slate-900 dark:text-white uppercase">{result.rcno || "Not Available"}</p>
+                    <p className="font-bold text-slate-900 dark:text-white uppercase break-all">
+                      {result.rcno ||
+                        "Not Available"}
+                    </p>
                   </div>
 
                   {/* NAME */}
@@ -644,10 +1075,15 @@ export default function RcPdf() {
                     <div className="flex items-center gap-2 mb-2">
                       <User className="h-4 w-4 text-[#ff3800]" />
 
-                      <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-gray-400">Owner Name</span>
+                      <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-gray-400">
+                        Owner Name
+                      </span>
                     </div>
 
-                    <p className="font-bold text-slate-900 dark:text-white">{result.name || "Not Available"}</p>
+                    <p className="font-bold text-slate-900 dark:text-white break-words">
+                      {result.name ||
+                        "Not Available"}
+                    </p>
                   </div>
 
                   {/* APPLICATION NUMBER */}
@@ -667,10 +1103,15 @@ export default function RcPdf() {
                     <div className="flex items-center gap-2 mb-2">
                       <Hash className="h-4 w-4 text-[#ff3800]" />
 
-                      <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-gray-400">Application Number</span>
+                      <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-gray-400">
+                        Application Number
+                      </span>
                     </div>
 
-                    <p className="font-bold text-sm break-all text-slate-900 dark:text-white">{result.application_no || "Not Available"}</p>
+                    <p className="font-bold text-sm break-all text-slate-900 dark:text-white">
+                      {result.application_no ||
+                        "Not Available"}
+                    </p>
                   </div>
 
                   {/* ORDER ID */}
@@ -689,10 +1130,15 @@ export default function RcPdf() {
                     <div className="flex items-center gap-2 mb-2">
                       <Hash className="h-4 w-4 text-[#ff3800]" />
 
-                      <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-gray-400">Order ID</span>
+                      <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-gray-400">
+                        Order ID
+                      </span>
                     </div>
 
-                    <p className="font-bold text-sm font-mono text-slate-900 dark:text-white">{result.order_id || "Not Available"}</p>
+                    <p className="font-bold text-sm font-mono text-slate-900 dark:text-white break-all">
+                      {result.order_id ||
+                        "Not Available"}
+                    </p>
                   </div>
 
                   {/* CHARGE */}
@@ -711,10 +1157,17 @@ export default function RcPdf() {
                     <div className="flex items-center gap-2 mb-2">
                       <CreditCard className="h-4 w-4 text-[#ff3800]" />
 
-                      <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-gray-400">Amount Charged</span>
+                      <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-gray-400">
+                        Amount Charged
+                      </span>
                     </div>
 
-                    <p className="font-bold text-sm text-slate-900 dark:text-white">₹{Number(result.charge || 0).toLocaleString("en-IN")}</p>
+                    <p className="font-bold text-sm text-slate-900 dark:text-white">
+                      ₹
+                      {Number(
+                        result.charge || 0
+                      ).toLocaleString("en-IN")}
+                    </p>
                   </div>
 
                   {/* OLD BALANCE */}
@@ -733,10 +1186,17 @@ export default function RcPdf() {
                     <div className="flex items-center gap-2 mb-2">
                       <Wallet className="h-4 w-4 text-[#ff3800]" />
 
-                      <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-gray-400">Old Balance</span>
+                      <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-gray-400">
+                        Old Balance
+                      </span>
                     </div>
 
-                    <p className="font-bold text-sm text-slate-900 dark:text-white">₹{Number(result.old_balance || 0).toLocaleString("en-IN")}</p>
+                    <p className="font-bold text-sm text-slate-900 dark:text-white">
+                      ₹
+                      {Number(
+                        result.old_balance || 0
+                      ).toLocaleString("en-IN")}
+                    </p>
                   </div>
 
                   {/* NEW BALANCE */}
@@ -755,10 +1215,17 @@ export default function RcPdf() {
                     <div className="flex items-center gap-2 mb-2">
                       <Wallet className="h-4 w-4 text-[#ff3800]" />
 
-                      <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-gray-400">New Balance</span>
+                      <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-gray-400">
+                        New Balance
+                      </span>
                     </div>
 
-                    <p className="font-bold text-sm text-slate-900 dark:text-white">₹{Number(result.new_balance || 0).toLocaleString("en-IN")}</p>
+                    <p className="font-bold text-sm text-slate-900 dark:text-white">
+                      ₹
+                      {Number(
+                        result.new_balance || 0
+                      ).toLocaleString("en-IN")}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -781,6 +1248,7 @@ export default function RcPdf() {
                         className="
                           h-10
                           w-10
+                          shrink-0
                           rounded-xl
                           bg-[#ff3800]/10
                           flex
@@ -792,21 +1260,23 @@ export default function RcPdf() {
                       </div>
 
                       <div>
-                        <p className="font-semibold text-slate-900 dark:text-white">RC PDF Ready</p>
+                        <p className="font-semibold text-slate-900 dark:text-white">
+                          RC PDF Ready
+                        </p>
 
-                        <p className="text-xs text-slate-500 dark:text-gray-400">Your RC document is ready</p>
+                        <p className="text-xs text-slate-500 dark:text-gray-400">
+                          Your RC document is ready
+                        </p>
                       </div>
                     </div>
 
                     <div className="flex flex-col sm:flex-row gap-3">
-                      {/* VIEW PDF */}
+                      {/* VIEW */}
 
                       <Button
                         type="button"
                         variant="outline"
-                        onClick={() => {
-                          window.open(result.pdf, "_blank", "noopener,noreferrer");
-                        }}
+                        onClick={viewPdf}
                         className="
                           flex-1
                           h-11
@@ -817,6 +1287,7 @@ export default function RcPdf() {
                         "
                       >
                         <Eye className="mr-2 h-4 w-4" />
+
                         View PDF
                       </Button>
 
@@ -835,6 +1306,7 @@ export default function RcPdf() {
                         "
                       >
                         <Download className="mr-2 h-4 w-4" />
+
                         Download PDF
                       </Button>
                     </div>
@@ -856,9 +1328,9 @@ export default function RcPdf() {
                 <Button
                   type="button"
                   variant="ghost"
-                  onClick={() => {
-                    setShowPopup(false);
-                  }}
+                  onClick={() =>
+                    setShowPopup(false)
+                  }
                   className="
                     w-full
                     rounded-xl
@@ -867,6 +1339,7 @@ export default function RcPdf() {
                   "
                 >
                   Search Another RC
+
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </div>
