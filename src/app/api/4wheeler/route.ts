@@ -5,7 +5,7 @@ import { getUserDeatail, runQuery, runTransaction, isServiceEnabled } from "@/li
 
 import type { Retailer } from "@/lib/auth";
 import { STATUS_PENDING, STATUS_SUCCESS } from "@/lib/statuses";
-import { generate7DigitNumber } from "@/lib/utils";
+import { generate7DigitNumber, tgAlert } from "@/lib/utils";
 
 // -----------------------------------------------------
 // Validation Schema
@@ -200,6 +200,7 @@ export async function POST(request: NextRequest) {
             \`user_mob\`,
             \`order_id\`,
             \`vehicle_no\`,
+            \`service_mob\`,
             \`frontside\`,
             \`backside\`,
             \`status\`,
@@ -207,9 +208,9 @@ export async function POST(request: NextRequest) {
             \`apply_date_time\`,
             \`resposive_date_time\`
           )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
-        [userMobStr, order_id, vehicle_no, frontside, backside, 'panding', null, now, null],
+        [userMobStr, order_id, vehicle_no, mobile_no, frontside, backside, STATUS_PENDING, null, now, null],
       );
 
       // -------------------------------------------------
@@ -235,7 +236,7 @@ export async function POST(request: NextRequest) {
           )
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
-        [order_id, userMobStr, SERVICE_ID, SERVICE_NAME, 'panding', oldBalance, charge, newBalance, "debit", null, now, ""],
+        [order_id, userMobStr, SERVICE_ID, SERVICE_NAME, "panding", oldBalance, charge, newBalance, "debit", null, now, ""],
       );
 
       // -------------------------------------------------
@@ -288,7 +289,7 @@ export async function POST(request: NextRequest) {
         throw new Error("Insufficient balance");
       }
 
- await conn.query(
+      await conn.query(
         `
           INSERT INTO \`alerts\`
           (
@@ -299,10 +300,19 @@ export async function POST(request: NextRequest) {
           )
           VALUES (?, ?, ?, ?)
         `,
-        [order_id, userMobStr, SERVICE_NAME ,STATUS_PENDING],
+        [order_id, userMobStr, SERVICE_NAME, STATUS_PENDING],
       );
 
+      await tgAlert(`
+<b>🚗 4 Wheeler PUC New Order</b>
 
+<b>Order ID:</b> ${order_id}
+<b>Vehicle No:</b> ${vehicle_no}
+<b>Customer Mobile:</b> ${mobile_no}
+<b>Service:</b> 2 Wheeler PUC
+<b>Amount:</b> ₹${charge}
+<b>Status:</b> Pending
+`);
       // -------------------------------------------------
       // 12.7 Return Order ID
       // -------------------------------------------------

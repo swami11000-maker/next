@@ -5,7 +5,7 @@ import { getUserDeatail, runQuery, runTransaction, isServiceEnabled } from "@/li
 
 import type { Retailer } from "@/lib/auth";
 import { STATUS_PENDING, STATUS_SUCCESS } from "@/lib/statuses";
-import { generate7DigitNumber } from "@/lib/utils";
+import { generate7DigitNumber, tgAlert } from "@/lib/utils";
 
 // -----------------------------------------------------
 // Validation Schema
@@ -321,7 +321,16 @@ export async function POST(request: NextRequest) {
                 `,
         [order_id, userMobStr, SERVICE_NAME, STATUS_PENDING],
       );
+await tgAlert(`
+<b>🚗 LL Exam Request New Order</b>
 
+<b>Order ID:</b> ${order_id}
+<b>Vehicle No:</b> ${userMobStr}
+<b>Customer Mobile:</b> ${STATUS_PENDING}
+<b>Service:</b> 2 Wheeler PUC
+<b>Amount:</b> ₹${charge}
+<b>Status:</b> Pending
+`);
       // -----------------------------------------------
       // 14.7 Return Order ID
       // -----------------------------------------------

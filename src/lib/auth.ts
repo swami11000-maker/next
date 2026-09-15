@@ -14,7 +14,7 @@ export interface Retailer {
   status: string;
   balance: number;
   usertype: string;
-  lastaddmoneyid?:string;
+  lastaddmoneyid?: string;
   "2wheeler_puc": string;
   "2wheeler_fee": number;
   "4wheeler_puc": string;
@@ -48,10 +48,7 @@ export interface Retailer {
   fees?: string;
 }
 
-export function isServiceEnabled(
-  retailer: Retailer | null | undefined,
-  serviceFlag: keyof Retailer
-): boolean {
+export function isServiceEnabled(retailer: Retailer | null | undefined, serviceFlag: keyof Retailer): boolean {
   if (!retailer) return false;
 
   const value = retailer[serviceFlag];
@@ -100,45 +97,7 @@ export async function comparePassword(password: string, hash: string): Promise<b
 
 export type RetailerSafe = Omit<Retailer, "password">;
 
-export const RETAILER_SAFE_COLUMNS = [
-  "id",
-  "name",
-  "mobile",
-  "email",
-  "status",
-  "balance",
-  "usertype",
-  "`2wheeler_puc`",
-  "`2wheeler_fee`",
-  "`4wheeler_puc`",
-  "`4wheeler_fee`",
-  "voter_mobile_link",
-  "voter_mobile_link_fee",
-  "rc_mobile_update",
-  "rc_mo_update_fee",
-  "ll_medical",
-  "ll_medical_fee",
-  "pan_find",
-  "pan_find_fee",
-  "pandetils",
-  "pandetils_fee",
-  "dl_find",
-  "dl_find_fee",
-  "dl_print",
-  "`dl_print_fee`",
-  "dl_mo_update",
-  "`dl_mo_update_fee`",
-  "`ll_exam`",
-  "`ll_exam_fee`",
-  "agri_pdf",
-  "agri_pdf_fee",
-  "rc_print",
-  "rc_print_fee",
-  "esharm_pdf",
-  "esharm_pdf_fee",
-  "esharm_mob_update",
-  "esharm_mob_update_fee",
-];
+export const RETAILER_SAFE_COLUMNS = ["id", "name", "mobile", "email", "status", "balance", "usertype", "`2wheeler_puc`", "`2wheeler_fee`", "`4wheeler_puc`", "`4wheeler_fee`", "voter_mobile_link", "voter_mobile_link_fee", "rc_mobile_update", "rc_mo_update_fee", "ll_medical", "ll_medical_fee", "pan_find", "pan_find_fee", "pandetils", "pandetils_fee", "dl_find", "dl_find_fee", "dl_print", "`dl_print_fee`", "dl_mo_update", "`dl_mo_update_fee`", "`ll_exam`", "`ll_exam_fee`", "agri_pdf", "agri_pdf_fee", "rc_print", "rc_print_fee", "esharm_pdf", "esharm_pdf_fee", "esharm_mob_update", "esharm_mob_update_fee"];
 
 const JWT_SECRET = process.env.JWT_SECRET ?? "fallback_secret_change_me";
 
@@ -289,6 +248,7 @@ export interface TwoWheelerRequest {
   order_id: number;
   vehicle_no: string;
   frontside: string;
+  service_mob:string;
   backside: string;
   status: TwoWheelerStatus;
   admin_upload_doc: string | null;
@@ -296,18 +256,7 @@ export interface TwoWheelerRequest {
   resposive_date_time: string | null;
 }
 
-export const TWOWHEELER_SAFE_COLUMNS = [
-  "id",
-  "`user_mob`",
-  "`order_id`",
-  "`vehicle_no`",
-  "frontside",
-  "backside",
-  "status",
-  "`admin_upload_doc`",
-  "`apply_date_time`",
-  "`resposive_date_time`",
-];
+export const TWOWHEELER_SAFE_COLUMNS = ["id", "`user_mob`", "`service_mob`", "`order_id`", "`vehicle_no`", "frontside", "backside", "status", "`admin_upload_doc`", "`apply_date_time`", "`resposive_date_time`"];
 
 export type FourWheelerStatus = "panding" | "refund" | "success";
 
@@ -316,6 +265,8 @@ export interface FourWheelerRequest {
   user_mob: number | null;
   order_id: number;
   vehicle_no: string;
+  service_mob:string;
+
   frontside: string;
   backside: string;
   status: FourWheelerStatus;
@@ -324,18 +275,7 @@ export interface FourWheelerRequest {
   resposive_date_time: string | null;
 }
 
-export const FOURWHEELER_SAFE_COLUMNS = [
-  "id",
-  "`user_mob`",
-  "`order_id`",
-  "`vehicle_no`",
-  "frontside",
-  "backside",
-  "status",
-  "`admin_upload_doc`",
-  "`apply_date_time`",
-  "`resposive_date_time`",
-];
+export const FOURWHEELER_SAFE_COLUMNS = ["id", "`user_mob`", "`order_id`", "`vehicle_no`", "frontside", "backside", "status", "`admin_upload_doc`","`service_mob`", "`apply_date_time`", "`resposive_date_time`"];
 
 export type LlMedicalStatus = "panding" | "refund" | "success";
 
@@ -353,19 +293,7 @@ export interface LlMedicalRequest {
   resposive_date_time: string | null;
 }
 
-export const LL_MEDICAL_SAFE_COLUMNS = [
-  "id",
-  "`user_mob`",
-  "`order_id`",
-  "`application_no`",
-  "`state`",
-  "`dob`",
-  "`charge`",
-  "`status`",
-  "`apply_date_time`",
-  "`admin_upload_doc`",
-  "`resposive_date_time`",
-];
+export const LL_MEDICAL_SAFE_COLUMNS = ["id", "`user_mob`", "`order_id`", "`application_no`", "`state`", "`dob`", "`charge`", "`status`", "`apply_date_time`", "`admin_upload_doc`", "`resposive_date_time`"];
 
 export type LlExamStatus = "panding" | "refund" | "success";
 
@@ -386,22 +314,7 @@ export interface LlExamRequest {
   resposive_date_time: string | null;
 }
 
-export const LL_EXAM_SAFE_COLUMNS = [
-  "id",
-  "`user_mob`",
-  "`order_id`",
-  "`application_no`",
-  "`password`",
-  "`dob`",
-  "`status`",
-  "`apply_date_time`",
-  "`pin`",
-  "`state`",
-  "`charge`",
-  "`shift`",
-  "`admin_upload_doc`",
-  "`resposive_date_time`",
-];
+export const LL_EXAM_SAFE_COLUMNS = ["id", "`user_mob`", "`order_id`", "`application_no`", "`password`", "`dob`", "`status`", "`apply_date_time`", "`pin`", "`state`", "`charge`", "`shift`", "`admin_upload_doc`", "`resposive_date_time`"];
 export async function getUserDeatail(request: NextRequest): Promise<Retailer | null> {
   try {
     const token = request.cookies.get("auth-token")?.value;
@@ -413,7 +326,7 @@ export async function getUserDeatail(request: NextRequest): Promise<Retailer | n
     if (!payload?.id) return null;
 
     const rows = await runQuery<Retailer[]>(
-  `
+      `
   SELECT
     id,
     name,
@@ -455,8 +368,8 @@ export async function getUserDeatail(request: NextRequest): Promise<Retailer | n
   WHERE id = ?
   LIMIT 1
   `,
-  [payload.id],
-);
+      [payload.id],
+    );
 
     return rows[0] ?? null;
   } catch (error) {

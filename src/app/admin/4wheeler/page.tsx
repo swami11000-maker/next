@@ -57,7 +57,7 @@ async function api<T>(
   if (!res.ok) {
     throw new Error(
       (json as { message?: string }).message ||
-        "Request failed",
+      "Request failed",
     );
   }
 
@@ -83,7 +83,7 @@ export default function AdminFourWheelerPage() {
   const [requests, setRequests] = useState<
     FourWheelerRequest[]
   >([]);
-const {refreshAlerts
+  const { refreshAlerts
   } = useAlerts();
   const [loading, setLoading] =
     useState<boolean>(true);
@@ -112,8 +112,8 @@ const {refreshAlerts
       try {
         const url = filter
           ? `/api/admin/4wheeler?status=${encodeURIComponent(
-              filter,
-            )}`
+            filter,
+          )}`
           : "/api/admin/4wheeler";
 
         const data =
@@ -150,9 +150,9 @@ const {refreshAlerts
       prev.map((item) =>
         item.id === row.id
           ? {
-              ...item,
-              status: status as FourWheelerStatus,
-            }
+            ...item,
+            status: status as FourWheelerStatus,
+          }
           : item,
       ),
     );
@@ -174,9 +174,9 @@ const {refreshAlerts
         prev.map((item) =>
           item.id === row.id
             ? {
-                ...item,
-                status: oldStatus,
-              }
+              ...item,
+              status: oldStatus,
+            }
             : item,
         ),
       );
@@ -292,11 +292,10 @@ const {refreshAlerts
           className="gap-2 bg-orange-600 text-white hover:bg-orange-700"
         >
           <RefreshCw
-            className={`h-4 w-4 ${
-              loading
+            className={`h-4 w-4 ${loading
                 ? "animate-spin"
                 : ""
-            }`}
+              }`}
           />
 
           Refresh
@@ -323,11 +322,10 @@ const {refreshAlerts
         <div className="flex flex-wrap gap-1 rounded-xl border border-gray-200 bg-white p-1">
           <button
             type="button"
-            className={`rounded-lg px-4 py-2 text-xs font-semibold transition-all ${
-              !filter
+            className={`rounded-lg px-4 py-2 text-xs font-semibold transition-all ${!filter
                 ? "bg-orange-600 text-white shadow-sm"
                 : "text-black hover:bg-orange-50"
-            }`}
+              }`}
             onClick={() =>
               setFilter("")
             }
@@ -337,11 +335,10 @@ const {refreshAlerts
 
           <button
             type="button"
-            className={`rounded-lg px-4 py-2 text-xs font-semibold transition-all ${
-              filter === "panding"
+            className={`rounded-lg px-4 py-2 text-xs font-semibold transition-all ${filter === "panding"
                 ? "bg-orange-600 text-white shadow-sm"
                 : "text-black hover:bg-orange-50"
-            }`}
+              }`}
             onClick={() =>
               setFilter("panding")
             }
@@ -351,11 +348,10 @@ const {refreshAlerts
 
           <button
             type="button"
-            className={`rounded-lg px-4 py-2 text-xs font-semibold transition-all ${
-              filter === "success"
+            className={`rounded-lg px-4 py-2 text-xs font-semibold transition-all ${filter === "success"
                 ? "bg-orange-600 text-white shadow-sm"
                 : "text-black hover:bg-orange-50"
-            }`}
+              }`}
             onClick={() =>
               setFilter("success")
             }
@@ -365,11 +361,10 @@ const {refreshAlerts
 
           <button
             type="button"
-            className={`rounded-lg px-4 py-2 text-xs font-semibold transition-all ${
-              filter === "refund"
+            className={`rounded-lg px-4 py-2 text-xs font-semibold transition-all ${filter === "refund"
                 ? "bg-orange-600 text-white shadow-sm"
                 : "text-black hover:bg-orange-50"
-            }`}
+              }`}
             onClick={() =>
               setFilter("refund")
             }
@@ -403,6 +398,9 @@ const {refreshAlerts
           <Table>
             <TableHeader>
               <TableRow className="border-gray-200 bg-orange-50 hover:bg-orange-50">
+                <TableHead className="whitespace-nowrap font-bold text-black">
+                  Retailer Mob
+                </TableHead>
                 <TableHead className="whitespace-nowrap font-bold text-black">
                   Vehicle No
                 </TableHead>
@@ -497,14 +495,21 @@ const {refreshAlerts
                   return (
                     <TableRow
                       key={row.id}
-                      className={`border-gray-200 text-black transition-colors hover:bg-orange-50/40 ${
-                        isUpdating ||
-                        isUploading ||
-                        isDeleting
+                      className={`border-gray-200 text-black transition-colors hover:bg-orange-50/40 ${isUpdating ||
+                          isUploading ||
+                          isDeleting
                           ? "opacity-60"
                           : ""
-                      }`}
+                        }`}
                     >
+                      {/* Mobile */}
+                      <TableCell className="whitespace-nowrap font-medium text-black">
+                        {row.user_mob
+                          ? String(
+                            row.user_mob,
+                          )
+                          : "-"}
+                      </TableCell>
                       {/* Vehicle Number */}
                       <TableCell>
                         <span className="inline-flex rounded-lg border border-orange-200 bg-orange-50 px-2.5 py-1 font-mono text-xs font-bold text-orange-600">
@@ -512,59 +517,55 @@ const {refreshAlerts
                         </span>
                       </TableCell>
 
-                      {/* Mobile */}
                       <TableCell className="whitespace-nowrap font-medium text-black">
                         {row.user_mob
                           ? String(
-                              row.user_mob,
-                            )
+                            row.service_mob,
+                          )
                           : "-"}
                       </TableCell>
-
                       {/* Status */}
-                     <TableCell>
-                                             <div className="relative inline-flex items-center">
-                                               {isUpdating && (
-                                                 <Loader2 className="pointer-events-none absolute left-2 z-10 h-3.5 w-3.5 animate-spin text-orange-600" />
-                                               )}
-                     
-                                               <select
-                                                 className={`min-w-[125px] cursor-pointer appearance-none rounded-lg border px-3 py-2 text-xs font-bold outline-none transition disabled:cursor-not-allowed ${
-                                                   isUpdating
-                                                     ? "pl-7"
-                                                     : ""
-                                                 } ${
-                                                   STATUS_COLORS[
-                                                     row.status
-                                                   ] ??
-                                                   "border-gray-300 bg-white text-black"
-                                                 }`}
-                                                 value={row.status}
-                                                 disabled={isUpdating}
-                                                 onChange={(e) =>
-                                                   changeStatus(
-                                                     row,
-                                                     e.target.value,
-                                                   )
-                                                 }
-                                               >
-                                                 {STATUS_OPTIONS.map(
-                                                   (option) => (
-                                                     <option
-                                                       key={
-                                                         option.value
-                                                       }
-                                                       value={
-                                                         option.value
-                                                       }
-                                                     >
-                                                       {option.label}
-                                                     </option>
-                                                   ),
-                                                 )}
-                                               </select>
-                                             </div>
-                                           </TableCell>
+                      <TableCell>
+                        <div className="relative inline-flex items-center">
+                          {isUpdating && (
+                            <Loader2 className="pointer-events-none absolute left-2 z-10 h-3.5 w-3.5 animate-spin text-orange-600" />
+                          )}
+
+                          <select
+                            className={`min-w-[125px] cursor-pointer appearance-none rounded-lg border px-3 py-2 text-xs font-bold outline-none transition disabled:cursor-not-allowed ${isUpdating
+                                ? "pl-7"
+                                : ""
+                              } ${STATUS_COLORS[
+                              row.status
+                              ] ??
+                              "border-gray-300 bg-white text-black"
+                              }`}
+                            value={row.status}
+                            disabled={isUpdating}
+                            onChange={(e) =>
+                              changeStatus(
+                                row,
+                                e.target.value,
+                              )
+                            }
+                          >
+                            {STATUS_OPTIONS.map(
+                              (option) => (
+                                <option
+                                  key={
+                                    option.value
+                                  }
+                                  value={
+                                    option.value
+                                  }
+                                >
+                                  {option.label}
+                                </option>
+                              ),
+                            )}
+                          </select>
+                        </div>
+                      </TableCell>
 
                       {/* Photos */}
                       <TableCell>
@@ -603,11 +604,10 @@ const {refreshAlerts
                           </a>
                         ) : (
                           <label
-                            className={`inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-orange-200 bg-white px-3 text-xs font-semibold text-black transition hover:bg-orange-50 hover:text-orange-600 ${
-                              isUploading
+                            className={`inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-orange-200 bg-white px-3 text-xs font-semibold text-black transition hover:bg-orange-50 hover:text-orange-600 ${isUploading
                                 ? "cursor-not-allowed opacity-60"
                                 : ""
-                            }`}
+                              }`}
                           >
                             <input
                               type="file"
@@ -655,10 +655,10 @@ const {refreshAlerts
                       <TableCell className="whitespace-nowrap text-xs text-gray-500">
                         {row.apply_date_time
                           ? new Date(
-                              row.apply_date_time,
-                            ).toLocaleString(
-                              "en-IN",
-                            )
+                            row.apply_date_time,
+                          ).toLocaleString(
+                            "en-IN",
+                          )
                           : "-"}
                       </TableCell>
 
