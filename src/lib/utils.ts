@@ -22,3 +22,5 @@ export function generateOrder(): string {
 
   return `ORD${random}`;
 }
+
+

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { runQuery, runMutation, runTransaction, SqlParam, LL_EXAM_SAFE_COLUMNS } from "@/lib/auth";
 import type { LlExamRequest } from "@/lib/auth";
-import { STATUS_REFUND } from "@/lib/statuses";
+import { STATUS_REFUND, STATUS_SUCCESS } from "@/lib/statuses";
 
 const updateSchema = z.object({
   status: z.enum(["panding", "refund", "success"]).optional(),
@@ -216,7 +216,14 @@ if (newStatus === STATUS_REFUND && currentStatus !== STATUS_REFUND) {
         );
       }
     });
-
+  await runQuery(
+  `
+    UPDATE \`alerts\`
+    SET \`status\` = ?
+    WHERE \`order_id\` = ?
+  `,
+  [STATUS_SUCCESS, orderId]
+);
     const updated = await runQuery<LlExamRequest[]>(
       `SELECT ${RETAILER_SELECT} FROM \`ll-exam-request\` WHERE id = ? LIMIT 1`,
       [Number(id)]

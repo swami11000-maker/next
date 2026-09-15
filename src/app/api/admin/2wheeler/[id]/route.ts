@@ -28,10 +28,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   }
 }
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const body = await request.json();
@@ -39,37 +36,24 @@ export async function PUT(
     const result = updateSchema.safeParse(body);
 
     if (!result.success) {
-      return NextResponse.json(
-        { message: result.error.issues[0].message },
-        { status: 400 },
-      );
+      return NextResponse.json({ message: result.error.issues[0].message }, { status: 400 });
     }
 
     // Check existing request
-    const existing = await runQuery<any[]>(
-      "SELECT id, order_id, user_mob, status FROM `2wheeler` WHERE id = ? LIMIT 1",
-      [Number(id)],
-    );
+    const existing = await runQuery<any[]>("SELECT id, order_id, user_mob, status FROM `2wheeler` WHERE id = ? LIMIT 1", [Number(id)]);
 
     if (existing.length === 0) {
-      return NextResponse.json(
-        { message: "Request not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ message: "Request not found" }, { status: 404 });
     }
-
 
     const requestData = existing[0];
 
     const orderId = requestData.order_id;
     const userMob = requestData.user_mob;
     const currentStatus = requestData.status;
-if(currentStatus === STATUS_REFUND){
-   return NextResponse.json(
-        { message: "Already Refunded " },
-        { status: 404 },
-      );
-}
+    if (currentStatus === STATUS_REFUND) {
+      return NextResponse.json({ message: "Already Refunded " }, { status: 404 });
+    }
     const updates: string[] = [];
     const values: SqlParam[] = [];
 
@@ -79,9 +63,7 @@ if(currentStatus === STATUS_REFUND){
       values.push(result.data.status as TwoWheelerStatus);
 
       updates.push("`resposive_date_time` = ?");
-      values.push(
-        new Date().toISOString().slice(0, 19).replace("T", " "),
-      );
+      values.push(new Date().toISOString().slice(0, 19).replace("T", " "));
     }
 
     // Update admin document
@@ -99,19 +81,13 @@ if(currentStatus === STATUS_REFUND){
     }
 
     if (updates.length === 0) {
-      return NextResponse.json(
-        { message: "No fields to update" },
-        { status: 400 },
-      );
+      return NextResponse.json({ message: "No fields to update" }, { status: 400 });
     }
 
     const newStatus = result.data.status;
     const adminUploadDoc = result.data.admin_upload_doc;
 
-    const now = new Date()
-      .toISOString()
-      .slice(0, 19)
-      .replace("T", " ");
+    const now = new Date().toISOString().slice(0, 19).replace("T", " ");
 
     await runTransaction(async (conn) => {
       /*
@@ -131,10 +107,7 @@ if(currentStatus === STATUS_REFUND){
       /*
        * Update work history
        */
-      if (
-        newStatus !== undefined ||
-        adminUploadDoc !== undefined
-      ) {
+      if (newStatus !== undefined || adminUploadDoc !== undefined) {
         const whUpdates: string[] = [];
         const whValues: SqlParam[] = [];
 
@@ -168,10 +141,7 @@ if(currentStatus === STATUS_REFUND){
        * 1. New status is refund
        * 2. Current status was not already refund
        */
-      if (
-        newStatus === STATUS_REFUND &&
-        currentStatus !== STATUS_REFUND
-      ) {
+      if (newStatus === STATUS_REFUND && currentStatus !== STATUS_REFUND) {
         /*
          * Get charge from workhistory
          *
@@ -190,42 +160,30 @@ if(currentStatus === STATUS_REFUND){
           [orderId],
         );
 
-        
+
+
 
         if (!Array.isArray(workHistoryRows)) {
-          throw new Error(
-            "Invalid workhistory query response",
-          );
+          throw new Error("Invalid workhistory query response");
         }
 
         if (workHistoryRows.length === 0) {
-          throw new Error(
-            `Work history not found for order: ${orderId}`,
-          );
+          throw new Error(`Work history not found for order: ${orderId}`);
         }
 
         const workHistory = workHistoryRows[0];
 
-
         /*
          * Validate charge
          */
-        if (
-          workHistory?.charge === null ||
-          workHistory?.charge === undefined ||
-          workHistory?.charge === ""
-        ) {
-          throw new Error(
-            `Invalid refund charge for order: ${orderId}`,
-          );
+        if (workHistory?.charge === null || workHistory?.charge === undefined || workHistory?.charge === "") {
+          throw new Error(`Invalid refund charge for order: ${orderId}`);
         }
 
         const charge = Number(workHistory.charge);
 
         if (!Number.isFinite(charge)) {
-          throw new Error(
-            `Invalid refund charge value: ${workHistory.charge}`,
-          );
+          throw new Error(`Invalid refund charge value: ${workHistory.charge}`);
         }
 
         /*
@@ -247,33 +205,21 @@ if(currentStatus === STATUS_REFUND){
           [retailerMobile],
         );
 
-
         if (!Array.isArray(retailerRows)) {
-          throw new Error(
-            "Invalid retailer query response",
-          );
+          throw new Error("Invalid retailer query response");
         }
 
         if (retailerRows.length === 0) {
-          throw new Error(
-            `Retailer not found for mobile: ${retailerMobile}`,
-          );
+          throw new Error(`Retailer not found for mobile: ${retailerMobile}`);
         }
 
         const retailer = retailerRows[0];
 
-
         /*
          * Validate retailer ID
          */
-        if (
-          retailer?.id === null ||
-          retailer?.id === undefined ||
-          retailer?.id === ""
-        ) {
-          throw new Error(
-            `Invalid retailer ID for mobile: ${retailerMobile}`,
-          );
+        if (retailer?.id === null || retailer?.id === undefined || retailer?.id === "") {
+          throw new Error(`Invalid retailer ID for mobile: ${retailerMobile}`);
         }
 
         /*
@@ -283,18 +229,12 @@ if(currentStatus === STATUS_REFUND){
          */
         let currentBalance = 0;
 
-        if (
-          retailer.balance !== null &&
-          retailer.balance !== undefined &&
-          retailer.balance !== ""
-        ) {
+        if (retailer.balance !== null && retailer.balance !== undefined && retailer.balance !== "") {
           currentBalance = Number(retailer.balance);
         }
 
         if (!Number.isFinite(currentBalance)) {
-          throw new Error(
-            `Invalid retailer balance value: ${retailer.balance}`,
-          );
+          throw new Error(`Invalid retailer balance value: ${retailer.balance}`);
         }
 
         /*
@@ -306,11 +246,8 @@ if(currentStatus === STATUS_REFUND){
          * Final safety check
          */
         if (!Number.isFinite(newBalance)) {
-          throw new Error(
-            `Invalid new balance calculation. Current: ${currentBalance}, Charge: ${charge}`,
-          );
+          throw new Error(`Invalid new balance calculation. Current: ${currentBalance}, Charge: ${charge}`);
         }
-
 
         /*
          * Update retailer balance
@@ -344,18 +281,7 @@ if(currentStatus === STATUS_REFUND){
           )
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `,
-          [
-            orderId,
-            retailerMobile,
-            "2 Wheeler PUC",
-            currentBalance,
-            charge,
-            newBalance,
-            "credit",
-            STATUS_REFUND,
-            now,
-            "Refund for order " + orderId,
-          ],
+          [orderId, retailerMobile, "2 Wheeler PUC", currentBalance, charge, newBalance, "credit", STATUS_REFUND, now, "Refund for order " + orderId],
         );
       }
     });
@@ -373,22 +299,27 @@ if(currentStatus === STATUS_REFUND){
       [Number(id)],
     );
 
+    await runQuery(
+  `
+    UPDATE \`alerts\`
+    SET \`status\` = ?
+    WHERE \`order_id\` = ?
+  `,
+  [STATUS_SUCCESS, orderId]
+);
+
     return NextResponse.json(updated[0]);
   } catch (error) {
     console.error("Update 2wheeler error:", error);
 
     return NextResponse.json(
       {
-        message:
-          error instanceof Error
-            ? error.message
-            : "Internal server error",
+        message: error instanceof Error ? error.message : "Internal server error",
       },
       { status: 500 },
     );
   }
 }
-
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {

@@ -61,32 +61,22 @@ export const PriceSidebar = () => {
 
   React.useEffect(() => {
     fetchTransactions();
-  }, [fetchTransactions]);
 
-  React.useEffect(() => {
-    const handler = () => {
+    const handleDataChanged = () => {
       fetchTransactions();
     };
-    window.addEventListener(RETAILER_DATA_CHANGED, handler);
-    return () => window.removeEventListener(RETAILER_DATA_CHANGED, handler);
-  }, [fetchTransactions]);
-
-  React.useEffect(() => {
     const handleVisibility = () => {
       if (document.visibilityState === "visible") {
         fetchTransactions();
       }
     };
-    const handleFocus = () => {
-      fetchTransactions();
-    };
 
+    window.addEventListener(RETAILER_DATA_CHANGED, handleDataChanged);
     document.addEventListener("visibilitychange", handleVisibility);
-    window.addEventListener("focus", handleFocus);
 
     return () => {
-      document.removeEventListener("visibilitychange", handleFocus);
-      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener(RETAILER_DATA_CHANGED, handleDataChanged);
+      document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, [fetchTransactions]);
 

@@ -23,6 +23,7 @@ import {
 
 import type { LlExamRequest, LlExamStatus } from "@/lib/auth";
 import { apiFetch } from "@/lib/api-client";
+import { useAlerts } from "@/hooks/use-alert";
 
 const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: "panding", label: "Processing" },
@@ -78,7 +79,8 @@ export default function AdminLlExamRequestPage() {
   const [requests, setRequests] = useState<
     LlExamRequest[]
   >([]);
-
+const {refreshAlerts
+  } = useAlerts();
   const [loading, setLoading] =
     useState<boolean>(true);
 
@@ -161,6 +163,7 @@ setRequests((prev) =>
           }),
         },
       );
+     await refreshAlerts()
     } catch (err) {
       setRequests((prev) =>
         prev.map((item) =>

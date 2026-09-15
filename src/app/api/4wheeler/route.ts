@@ -288,6 +288,21 @@ export async function POST(request: NextRequest) {
         throw new Error("Insufficient balance");
       }
 
+ await conn.query(
+        `
+          INSERT INTO \`alerts\`
+          (
+            \`order_id\`,
+            \`user_mob\`,
+            \`service_name\`,
+            \`status\`
+          )
+          VALUES (?, ?, ?, ?)
+        `,
+        [order_id, userMobStr, SERVICE_NAME ,STATUS_PENDING],
+      );
+
+
       // -------------------------------------------------
       // 12.7 Return Order ID
       // -------------------------------------------------

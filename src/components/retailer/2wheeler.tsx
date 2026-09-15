@@ -22,6 +22,7 @@ import { toast } from "../ui/toast";
 import { ImageUpload } from "../ui/imageupload";
 import { emitRetailerDataChanged } from "@/lib/data-events";
 import { apiFetch } from "@/lib/api-client";
+import { useAlerts } from "@/hooks/use-alert";
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -84,7 +85,7 @@ export default function VehicleDocumentUpload() {
   const [isLoading, setIsLoading] = React.useState(false);
 
   const { retailer } = useDataProvider();
-
+const {refreshAlerts} = useAlerts();
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
 
@@ -148,6 +149,7 @@ export default function VehicleDocumentUpload() {
         frontSidePhoto: undefined,
         backSidePhoto: undefined,
       });
+     await refreshAlerts()
     } catch (error) {
       toast.dismiss(loadingToastId);
 

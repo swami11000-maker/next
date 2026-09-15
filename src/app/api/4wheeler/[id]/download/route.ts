@@ -10,11 +10,12 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    console.log(params)
     const rows = await runQuery<FourWheelerRequest[]>(
       `SELECT ${SELECT_DOC} FROM \`4wheeler\` WHERE id = ? LIMIT 1`,
       [Number(id)]
     );
-
+console.log(rows)
     if (rows.length === 0) {
       return NextResponse.json({ message: "Request not found" }, { status: 404 });
     }

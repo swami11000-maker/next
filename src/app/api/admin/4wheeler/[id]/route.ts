@@ -51,10 +51,9 @@ export async function PUT(
       "SELECT id, order_id, user_mob, status FROM `4wheeler` WHERE id = ? LIMIT 1",
       [Number(id)],
     );
-
     if (existing.length === 0) {
       return NextResponse.json(
-        { message: "Request not found" },
+        { message: "Request not found123" },
         { status: 404 },
       );
     }
@@ -369,7 +368,14 @@ if(currentStatus === STATUS_REFUND){
       `,
       [Number(id)],
     );
-
+  await runQuery(
+  `
+    UPDATE \`alerts\`
+    SET \`status\` = ?
+    WHERE \`order_id\` = ?
+  `,
+  [STATUS_SUCCESS, orderId]
+);
     return NextResponse.json(updated[0]);
   } catch (error) {
     console.error("Update 4wheeler error:", error);

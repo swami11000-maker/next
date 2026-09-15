@@ -50,10 +50,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!isServiceEnabled(user, "ll_medical")) {
-      return NextResponse.json(
-        { message: "Learning Exam Medical service is not enabled for your account" },
-        { status: 403 }
-      );
+      return NextResponse.json({ message: "Learning Exam Medical service is not enabled for your account" }, { status: 403 });
     }
 
     // ---------------------------------------------------
@@ -293,6 +290,19 @@ export async function POST(request: NextRequest) {
       if (updateResult.affectedRows !== 1) {
         throw new Error("Insufficient balance");
       }
+      await conn.query(
+        `
+          INSERT INTO \`alerts\`
+          (
+            \`order_id\`,
+            \`user_mob\`,
+            \`service_name\`,
+            \`status\`
+          )
+          VALUES (?, ?, ?, ?)
+        `,
+        [order_id, userMobStr, SERVICE_NAME, STATUS_PENDING],
+      );
 
       // -----------------------------------------------
       // 13.7 Return Order ID

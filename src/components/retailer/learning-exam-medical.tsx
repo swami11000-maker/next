@@ -35,6 +35,7 @@ import { ServiceChargeCard } from "../ui/service-charge-card";
 import { useDataProvider } from "@/hooks/useDataProvider";
 import { emitRetailerDataChanged } from "@/lib/data-events";
 import { apiFetch } from "@/lib/api-client";
+import { useAlerts } from "@/hooks/use-alert";
 
 const fieldClass = cn(
   "h-12 w-full rounded-xl",
@@ -206,6 +207,7 @@ export default function LearningExamMedical() {
   const [error, setError] = React.useState<string | null>(null);
 
   const {retailer} = useDataProvider()
+  const {refreshAlerts} = useAlerts();
   /* =========================================================
      FORM
   ========================================================= */
@@ -326,6 +328,7 @@ export default function LearningExamMedical() {
         state: undefined,
         dateOfBirth: "",
       });
+     await refreshAlerts() ;
     } catch (err) {
       toast.dismiss(loadingToastId);
 

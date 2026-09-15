@@ -66,32 +66,22 @@ export const Ltable = () => {
 
   React.useEffect(() => {
     fetchHistory();
-  }, [fetchHistory]);
 
-  React.useEffect(() => {
-    const handler = () => {
+    const handleDataChanged = () => {
       fetchHistory();
     };
-    window.addEventListener(RETAILER_DATA_CHANGED, handler);
-    return () => window.removeEventListener(RETAILER_DATA_CHANGED, handler);
-  }, [fetchHistory]);
-
-  React.useEffect(() => {
     const handleVisibility = () => {
       if (document.visibilityState === "visible") {
         fetchHistory();
       }
     };
-    const handleFocus = () => {
-      fetchHistory();
-    };
 
+    window.addEventListener(RETAILER_DATA_CHANGED, handleDataChanged);
     document.addEventListener("visibilitychange", handleVisibility);
-    window.addEventListener("focus", handleFocus);
 
     return () => {
-      document.removeEventListener("visibilitychange", handleFocus);
-      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener(RETAILER_DATA_CHANGED, handleDataChanged);
+      document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, [fetchHistory]);
 

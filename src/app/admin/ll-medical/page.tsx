@@ -23,6 +23,7 @@ import {
 
 import type { LlMedicalRequest, LlMedicalStatus } from "@/lib/auth";
 import { apiFetch } from "@/lib/api-client";
+import { useAlerts } from "@/hooks/use-alert";
 
 const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: "panding", label: "Processing" },
@@ -78,7 +79,8 @@ export default function AdminLlMedicalPage() {
   const [requests, setRequests] = useState<
     LlMedicalRequest[]
   >([]);
-
+const {refreshAlerts
+  } = useAlerts();
   const [loading, setLoading] =
     useState<boolean>(true);
 
@@ -130,14 +132,6 @@ export default function AdminLlMedicalPage() {
     load();
   }, [load]);
 
-  // Auto refresh every 10 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      load(false);
-    }, 10000);
-
-    return () => clearInterval(interval);
-  }, [load]);
 
   async function changeStatus(
     row: LlMedicalRequest,
@@ -171,6 +165,7 @@ export default function AdminLlMedicalPage() {
           }),
         },
       );
+ await refreshAlerts() ;
     } catch (err) {
       // Restore old status on error
       setRequests((prev) =>

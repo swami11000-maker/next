@@ -25,6 +25,7 @@ import {
 
 import type { TwoWheelerRequest, TwoWheelerStatus } from "@/lib/auth";
 import { apiFetch } from "@/lib/api-client";
+import { useAlerts } from "@/hooks/use-alert";
 
 const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: "panding", label: "Processing" },
@@ -82,7 +83,8 @@ export default function AdminTwoWheelerPage() {
   const [requests, setRequests] = useState<
     TwoWheelerRequest[]
   >([]);
-
+const {refreshAlerts
+  } = useAlerts();
   const [loading, setLoading] =
     useState<boolean>(true);
 
@@ -134,14 +136,6 @@ export default function AdminTwoWheelerPage() {
     load();
   }, [load]);
 
-  // Auto refresh every 10 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      load(false);
-    }, 10000);
-
-    return () => clearInterval(interval);
-  }, [load]);
 
   async function changeStatus(
     row: TwoWheelerRequest,
@@ -175,6 +169,7 @@ export default function AdminTwoWheelerPage() {
           }),
         },
       );
+     await refreshAlerts() ;
     } catch (err) {
       // Restore old status if request fails
       setRequests((prev) =>

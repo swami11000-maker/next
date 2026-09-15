@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { runQuery, runMutation, runTransaction, SqlParam, LL_MEDICAL_SAFE_COLUMNS } from "@/lib/auth";
 import type { LlMedicalRequest } from "@/lib/auth";
-import { STATUS_REFUND } from "@/lib/statuses";
+import { STATUS_REFUND, STATUS_SUCCESS } from "@/lib/statuses";
 
 const updateSchema = z.object({
   status: z.enum(["panding", "refund", "success"]).optional(),
@@ -13,16 +13,10 @@ const updateSchema = z.object({
 const RETAILER_SELECT = LL_MEDICAL_SAFE_COLUMNS.join(", ");
 const SERVICE_NAME = "Learning Exam Medical";
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const rows = await runQuery<LlMedicalRequest[]>(
-      `SELECT ${RETAILER_SELECT} FROM \`ll_medical\` WHERE id = ? LIMIT 1`,
-      [Number(id)]
-    );
+    const rows = await runQuery<LlMedicalRequest[]>(`SELECT ${RETAILER_SELECT} FROM \`ll_medical\` WHERE id = ? LIMIT 1`, [Number(id)]);
 
     if (rows.length === 0) {
       return NextResponse.json({ message: "Request not found" }, { status: 404 });
@@ -35,10 +29,7 @@ export async function GET(
   }
 }
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const body = await request.json();
@@ -47,10 +38,7 @@ export async function PUT(
       return NextResponse.json({ message: result.error.issues[0].message }, { status: 400 });
     }
 
-    const existing = await runQuery<any[]>(
-      "SELECT id, order_id, user_mob, status FROM `ll_medical` WHERE id = ? LIMIT 1",
-      [Number(id)]
-    );
+    const existing = await runQuery<any[]>("SELECT id, order_id, user_mob, status FROM `ll_medical` WHERE id = ? LIMIT 1", [Number(id)]);
     if (existing.length === 0) {
       return NextResponse.json({ message: "Request not found" }, { status: 404 });
     }
@@ -60,12 +48,9 @@ export async function PUT(
     const userMob = requestData.user_mob;
     const currentStatus = requestData.status;
     const now = new Date().toISOString().slice(0, 19).replace("T", " ");
-if(currentStatus === STATUS_REFUND){
-   return NextResponse.json(
-        { message: "Already Refunded " },
-        { status: 404 },
-      );
-}
+    if (currentStatus === STATUS_REFUND) {
+      return NextResponse.json({ message: "Already Refunded " }, { status: 404 });
+    }
     const updates: string[] = [];
     const values: SqlParam[] = [];
 
@@ -117,10 +102,7 @@ if(currentStatus === STATUS_REFUND){
         whUpdates.push("`date_time` = ?");
         whValues.push(now);
 
-        await conn.query(
-          `UPDATE \`workhistory\` SET ${whUpdates.join(", ")} WHERE \`order_id\` = ?`,
-          [...whValues, orderId]
-        );
+        await conn.query(`UPDATE \`workhistory\` SET ${whUpdates.join(", ")} WHERE \`order_id\` = ?`, [...whValues, orderId]);
       }
 
       if (newStatus === STATUS_REFUND && currentStatus !== STATUS_REFUND) {
@@ -165,11 +147,7 @@ if(currentStatus === STATUS_REFUND){
         const retailer = retailerRows[0];
 
         let currentBalance = 0;
-        if (
-          retailer.balance !== null &&
-          retailer.balance !== undefined &&
-          retailer.balance !== ""
-        ) {
+        if (retailer.balance !== null && retailer.balance !== undefined && retailer.balance !== "") {
           currentBalance = Number(retailer.balance);
         }
 
@@ -179,10 +157,7 @@ if(currentStatus === STATUS_REFUND){
 
         const newBalance = currentBalance + charge;
 
-        await conn.query(
-          "UPDATE retailer SET balance = ? WHERE id = ? LIMIT 1",
-          [newBalance, retailer.id]
-        );
+        await conn.query("UPDATE retailer SET balance = ? WHERE id = ? LIMIT 1", [newBalance, retailer.id]);
 
         await conn.query(
           `
@@ -201,27 +176,20 @@ if(currentStatus === STATUS_REFUND){
           )
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `,
-          [
-            orderId,
-            retailerMobile,
-            SERVICE_NAME,
-            currentBalance,
-            charge,
-            newBalance,
-            "credit",
-            STATUS_REFUND,
-            now,
-            `Refund for ll_medical request #${id}`,
-          ]
+          [orderId, retailerMobile, SERVICE_NAME, currentBalance, charge, newBalance, "credit", STATUS_REFUND, now, `Refund for ll_medical request #${id}`],
         );
       }
     });
 
-    const updated = await runQuery<LlMedicalRequest[]>(
-      `SELECT ${RETAILER_SELECT} FROM \`ll_medical\` WHERE id = ? LIMIT 1`,
-      [Number(id)]
+    const updated = await runQuery<LlMedicalRequest[]>(`SELECT ${RETAILER_SELECT} FROM \`ll_medical\` WHERE id = ? LIMIT 1`, [Number(id)]);
+    await runQuery(
+      `
+    UPDATE \`alerts\`
+    SET \`status\` = ?
+    WHERE \`order_id\` = ?
+  `,
+      [STATUS_SUCCESS, orderId],
     );
-
     return NextResponse.json(updated[0]);
   } catch (error) {
     console.error("Update ll_medical error:", error);
@@ -229,16 +197,10 @@ if(currentStatus === STATUS_REFUND){
   }
 }
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const existing = await runQuery<{ id: number }[]>(
-      "SELECT id FROM `ll_medical` WHERE id = ? LIMIT 1",
-      [Number(id)]
-    );
+    const existing = await runQuery<{ id: number }[]>("SELECT id FROM `ll_medical` WHERE id = ? LIMIT 1", [Number(id)]);
 
     if (existing.length === 0) {
       return NextResponse.json({ message: "Request not found" }, { status: 404 });

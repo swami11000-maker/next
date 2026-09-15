@@ -25,6 +25,7 @@ import {
 
 import type { FourWheelerRequest, FourWheelerStatus } from "@/lib/auth";
 import { apiFetch } from "@/lib/api-client";
+import { useAlerts } from "@/hooks/use-alert";
 
 const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: "panding", label: "Processing" },
@@ -82,7 +83,8 @@ export default function AdminFourWheelerPage() {
   const [requests, setRequests] = useState<
     FourWheelerRequest[]
   >([]);
-
+const {refreshAlerts
+  } = useAlerts();
   const [loading, setLoading] =
     useState<boolean>(true);
 
@@ -134,15 +136,6 @@ export default function AdminFourWheelerPage() {
     load();
   }, [load]);
 
-  // Auto refresh every 10 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      load(false);
-    }, 10000);
-
-    return () => clearInterval(interval);
-  }, [load]);
-
   async function changeStatus(
     row: FourWheelerRequest,
     status: string,
@@ -153,7 +146,6 @@ export default function AdminFourWheelerPage() {
 
     setUpdatingStatusId(row.id);
 
-    // Optimistic UI Update
     setRequests((prev) =>
       prev.map((item) =>
         item.id === row.id
@@ -175,6 +167,7 @@ export default function AdminFourWheelerPage() {
           }),
         },
       );
+      refreshAlerts();
     } catch (err) {
       // Restore old status if request fails
       setRequests((prev) =>
@@ -207,7 +200,7 @@ export default function AdminFourWheelerPage() {
         await fileToBase64(file);
 
       await api(
-        `/api/admin/2wheeler/${row.id}`,
+        `/api/admin/4wheeler/${row.id}`,
         {
           method: "PUT",
           body: JSON.stringify({

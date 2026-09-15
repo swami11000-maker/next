@@ -11,6 +11,7 @@ const csp = [
 ].join("; ");
 
 const nextConfig: NextConfig = {
+  reactStrictMode: false,
   headers: async () => {
     return [
       {
@@ -35,6 +36,7 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+   
 };
 
 export default nextConfig;

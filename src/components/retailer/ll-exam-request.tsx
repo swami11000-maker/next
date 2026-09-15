@@ -25,6 +25,7 @@ import { ServiceChargeCard } from "../ui/service-charge-card";
 import { useDataProvider } from "@/hooks/useDataProvider";
 import { emitRetailerDataChanged } from "@/lib/data-events";
 import { apiFetch } from "@/lib/api-client";
+import { useAlerts } from "@/hooks/use-alert";
 function formatDateForForm(date: Date): string {
   return format(date, "dd-MM-yyyy");
 }
@@ -168,7 +169,7 @@ export default function LLExamRequest() {
   const [showResults, setShowResults] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const { retailer } = useDataProvider();
-
+const {refreshAlerts} = useAlerts();
   /* =========================================================
      FORM
   ========================================================= */
@@ -238,7 +239,7 @@ export default function LLExamRequest() {
       });
 
       emitRetailerDataChanged();
-
+await refreshAlerts();
     } catch (err) {
       toast.error("Something went wrong", {
         description: err instanceof Error ? err.message : "Unable to complete the request. Please try again.",
