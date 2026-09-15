@@ -9,7 +9,7 @@ const SERVICE_NAME = "RC Print";
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const rcno = searchParams.get("rcno")?.trim();
+    const rcno = searchParams.get("rcNumber")?.trim();
     const cardColorType = searchParams.get("cardColorType")?.trim();
     const cardType = searchParams.get("cardType")?.trim();
 

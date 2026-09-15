@@ -160,9 +160,6 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
           [orderId],
         );
 
-
-
-
         if (!Array.isArray(workHistoryRows)) {
           throw new Error("Invalid workhistory query response");
         }
@@ -300,13 +297,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     );
 
     await runQuery(
-  `
+      `
     UPDATE \`alerts\`
     SET \`status\` = ?
     WHERE \`order_id\` = ?
   `,
-  [STATUS_SUCCESS, orderId]
-);
+      [STATUS_SUCCESS, orderId],
+    );
 
     return NextResponse.json(updated[0]);
   } catch (error) {

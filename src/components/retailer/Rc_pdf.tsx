@@ -2,22 +2,14 @@
 
 import * as React from "react";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, Loader2, CheckCircle2, AlertCircle, ArrowRight, Car, Palette, CreditCard, FileText, Download, Eye, X, User, Hash, Wallet } from "lucide-react";
-
-import { cn } from "@/lib/utils";
-
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 
 import { Input } from "@/components/ui/input";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
-import { Badge } from "@/components/ui/badge";
-
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { useDataProvider } from "@/hooks/useDataProvider";
@@ -71,7 +63,7 @@ export default function RcPdf() {
      SUBMIT - GET API
   ========================================================= */
 
-  const onSubmit = async (data:any) => {
+  const onSubmit = async (data: any) => {
     setIsLoading(true);
     setError(null);
     setResult(null);
@@ -332,11 +324,11 @@ export default function RcPdf() {
 
                           <FormControl>
                             <Select>
-                              <SelectTrigger className="w-[180px]">
-                                <SelectValue placeholder="Theme" />
+                              <SelectTrigger className="w-full">
+                                <SelectValue className={'w-full'} placeholder="Theme" />
                               </SelectTrigger>
-                              <SelectContent>
-                                <SelectGroup>
+                              <SelectContent className={'w-full'} >
+                                <SelectGroup className={'w-full'} >
                                   <SelectItem value="New Background">New Background</SelectItem>
                                   <SelectItem value="Old Background">Old Background</SelectItem>
                                 </SelectGroup>
@@ -366,11 +358,11 @@ export default function RcPdf() {
 
                           <FormControl>
                             <Select>
-                              <SelectTrigger className="w-[180px]">
-                                <SelectValue placeholder="Theme" />
+                              <SelectTrigger  className={'w-full'}>
+                                <SelectValue  className={'w-full'} placeholder="Theme" />
                               </SelectTrigger>
-                              <SelectContent>
-                                <SelectGroup>
+                              <SelectContent >
+                                <SelectGroup  className={'w-full'}>
                                   <SelectItem value="Chip">Chip</SelectItem>
                                   <SelectItem value="Non-Chip">Non-Chip</SelectItem>
                                 </SelectGroup>
