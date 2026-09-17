@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { runQuery, runMutation, runTransaction, SqlParam, TWOWHEELER_SAFE_COLUMNS } from "@/lib/auth";
+import { getAdminUser, runQuery, runMutation, runTransaction, SqlParam, TWOWHEELER_SAFE_COLUMNS } from "@/lib/auth";
 import type { TwoWheelerRequest, TwoWheelerStatus } from "@/lib/auth";
 import { STATUS_REFUND, STATUS_SUCCESS } from "@/lib/statuses";
 
@@ -13,6 +13,10 @@ const updateSchema = z.object({
 const RETAILER_SELECT = TWOWHEELER_SAFE_COLUMNS.join(", ");
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const user = await getAdminUser(request);
+  if (!user) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
   try {
     const { id } = await params;
     const rows = await runQuery<TwoWheelerRequest[]>(`SELECT ${RETAILER_SELECT} FROM \`4wheeler\` WHERE id = ? LIMIT 1`, [Number(id)]);
@@ -32,6 +36,10 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const user = await getAdminUser(request);
+  if (!user) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
   try {
     const { id } = await params;
     const body = await request.json();
@@ -394,6 +402,10 @@ if(currentStatus === STATUS_REFUND){
 
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const user = await getAdminUser(request);
+  if (!user) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
   try {
     const { id } = await params;
     const existing = await runQuery<{ id: number }[]>("SELECT id FROM `4wheeler` WHERE id = ? LIMIT 1", [Number(id)]);

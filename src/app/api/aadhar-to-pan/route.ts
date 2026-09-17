@@ -2,18 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServiceFee } from "@/lib/actions";
 import { getUserDeatail, runTransaction, isServiceEnabled } from "@/lib/auth";
 import type { Retailer } from "@/lib/auth";
-import { generate7DigitNumber } from "@/lib/utils";
+import { generate7DigitNumber, getIndianDateTime } from "@/lib/utils";
 import { STATUS_SUCCESS } from "@/lib/statuses";
 
-// -----------------------------------------------------
-// Service Details
-// -----------------------------------------------------
-
 const SERVICE_NAME = "Aadhaar to PAN";
-
-// -----------------------------------------------------
-// Third-Party API Response Type
-// -----------------------------------------------------
 
 interface PanFindApiRes {
   status: string;
@@ -24,26 +16,14 @@ interface PanFindApiRes {
   message?: string;
 }
 
-// -----------------------------------------------------
-// GET
-// -----------------------------------------------------
-
 export async function GET(request: NextRequest) {
   try {
-    // -------------------------------------------------
-    // 1. Get PAN Number
-    // -------------------------------------------------
-
     const searchParams = request.nextUrl.searchParams;
     const aadhaar_no = searchParams.get("aadhaar_no")?.trim();
 
     if (!aadhaar_no) {
       return NextResponse.json({ error: "Missing aadhaar_no parameter" }, { status: 400 });
     }
-
-    // -------------------------------------------------
-    // 2. Get Logged-in Retailer
-    // -------------------------------------------------
 
     const user: Retailer | null = await getUserDeatail(request);
 
@@ -55,10 +35,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: "PAN Find service is not enabled for your account" }, { status: 403 });
     }
 
-    // -------------------------------------------------
-    // 3. Get API Key
-    // -------------------------------------------------
-
     const apiKey = process.env.APIZONE_API_KEY;
 
     if (!apiKey) {
@@ -66,21 +42,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "API key not configured" }, { status: 500 });
     }
 
-    // -------------------------------------------------
-    // 4. Get API URL
-    // -------------------------------------------------
-
     const apiBaseUrl = `${process.env.APIZONE_URL}/aadhaar_to_pan`;
 
     if (!apiBaseUrl) {
       console.error("APIZONE_URL is missing");
       return NextResponse.json({ error: "API URL not configured" }, { status: 500 });
     }
-
-    // -------------------------------------------------
-    // 5. Get Retailer Balance + PAN Fee
-    // -------------------------------------------------
-
     const { balance: oldBalance, fee: charge } = await getServiceFee(user.id, "pan_find_fee");
 
     // -------------------------------------------------
@@ -174,7 +141,7 @@ export async function GET(request: NextRequest) {
     // 13. Current Date/Time
     // -------------------------------------------------
 
-    const now = new Date().toISOString().slice(0, 19).replace("T", " ");
+    const now = getIndianDateTime();
     const userMobStr = String(user.mobile);
 
     // -------------------------------------------------

@@ -54,3 +54,69 @@ export interface RetailerData {
 
   [key: string]: unknown;
 }
+
+
+export interface Transition {
+  id: number;
+  order_id: string;
+  user_mob: string;
+  service_name: string;
+  old_balance: number | string;
+  charge: number | string;
+  new_balance: number | string;
+  tranfer_type: string;
+  status: string;
+  date_time: string;
+  remark: string | null;
+}
+
+export type SortDirection = 'asc' | 'desc';
+
+export interface ColumnDef<T> {
+  /** Unique column key */
+  key: string;
+  /** Header label (string or node) */
+  header: React.ReactNode;
+  /** Value used for sorting. Required when `sortable` is true */
+  sortValue?: (row: T) => string | number | null | undefined;
+  /** Custom cell renderer */
+  cell?: (row: T) => React.ReactNode;
+  /** Enable sorting on this column */
+  sortable?: boolean;
+  /** Extra classes for header cell */
+  headClassName?: string;
+  /** Extra classes for body cell */
+  cellClassName?: string;
+}
+
+export interface DataTableProps<T> {
+  data: T[];
+  columns: ColumnDef<T>[];
+  getRowKey: (row: T, index: number) => React.Key;
+  /** Records per page (default: 10) */
+  pageSize?: number;
+  initialSortKey?: string;
+  initialSortDirection?: SortDirection;
+  emptyState?: React.ReactNode;
+  className?: string;
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                PAGINATION                                  */
+/* -------------------------------------------------------------------------- */
+
+export interface TablePaginationProps {
+  page: number;
+  totalPages: number;
+  totalItems: number;
+  pageSize: number;
+  onPageChange: (page: number) => void;
+}
+export type Pagination = {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+};

@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { RETAILER_DATA_CHANGED } from "@/lib/data-events";
 import { apiFetch } from "@/lib/api-client";
+import { formatIndianDateTime } from "@/lib/date-utils";
 
 interface Transaction {
   service_name: string;
@@ -233,7 +234,7 @@ export const PriceSidebar = () => {
                       >
                         {transaction.tranfer_type || "-"}
                       </Badge>
-                      {transaction.created_at && <span className="text-[11px] text-zinc-400 dark:text-zinc-500">{new Date(transaction.created_at).toLocaleDateString("en-IN")}</span>}
+                      {transaction.created_at && <span className="text-[11px] text-zinc-400 dark:text-zinc-500">{formatIndianDateTime(transaction.created_at)}</span>}
                     </div>
 
                     {/* Balance flow */}

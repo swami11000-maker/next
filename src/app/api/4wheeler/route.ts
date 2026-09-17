@@ -1,76 +1,47 @@
-import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
+import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 
-import { getUserDeatail, runQuery, runTransaction, isServiceEnabled } from "@/lib/auth";
+import { getUserDeatail, runQuery, runTransaction, isServiceEnabled } from '@/lib/auth';
 
-import type { Retailer } from "@/lib/auth";
-import { STATUS_PENDING, STATUS_SUCCESS } from "@/lib/statuses";
-import { generate7DigitNumber, tgAlert } from "@/lib/utils";
+import type { Retailer } from '@/lib/auth';
+import { STATUS_PENDING, STATUS_SUCCESS } from '@/lib/statuses';
+import { generate7DigitNumber, getIndianDateTime, tgAlert } from '@/lib/utils';
+import { submitSchema } from '@/lib/validation';
 
-// -----------------------------------------------------
-// Validation Schema
-// -----------------------------------------------------
-
-const submitSchema = z.object({
-  vehicle_no: z.string().min(4, {
-    message: "Vehicle number is required",
-  }),
-
-  mobile_no: z.string().min(10, {
-    message: "Mobile number is required",
-  }),
-
-  frontside: z.string().min(1, {
-    message: "Front side photo is required",
-  }),
-
-  backside: z.string().min(1, {
-    message: "Back side photo is required",
-  }),
-});
-
-// -----------------------------------------------------
-// Service Details
-// -----------------------------------------------------
-
-const SERVICE_ID = "4wheeler_puc";
-const SERVICE_NAME = "4 Wheeler PUC";
-
-// -----------------------------------------------------
-// POST API
-// -----------------------------------------------------
+const SERVICE_ID = '4wheeler_puc';
+const SERVICE_NAME = '4 Wheeler PUC';
 
 export async function POST(request: NextRequest) {
   try {
-    // ---------------------------------------------------
-    // 1. Get Logged-in Retailer
-    // ---------------------------------------------------
-
     const user: Retailer | null = await getUserDeatail(request);
 
     if (!user) {
       return NextResponse.json(
         {
-          message: "Unauthorized",
+          message: 'Unauthorized',
         },
         {
           status: 401,
         },
       );
     }
-
+    if (!isServiceEnabled(user, '4wheeler_puc')) {
+      return NextResponse.json(
+        {
+          message: '4 Wheeler PUC service is not enabled for your account',
+        },
+        {
+          status: 403,
+        },
+      );
+    }
     const body = await request.json();
-
-    // ---------------------------------------------------
-    // 3. Validate Request
-    // ---------------------------------------------------
-
     const result = submitSchema.safeParse(body);
 
     if (!result.success) {
       return NextResponse.json(
         {
-          message: result.error.issues[0]?.message || "Invalid request",
+          message: result.error.issues[0]?.message || 'Invalid request',
         },
         {
           status: 400,
@@ -79,24 +50,9 @@ export async function POST(request: NextRequest) {
     }
 
     const { vehicle_no, mobile_no, frontside, backside } = result.data;
-
-    // ---------------------------------------------------
-    // 4. Current Date & Time
-    // ---------------------------------------------------
-
-    const now = new Date().toISOString().slice(0, 19).replace("T", " ");
-
-    // ---------------------------------------------------
-    // 5. Retailer Mobile
-    //
-    // Keep mobile number as STRING.
-    // ---------------------------------------------------
+    const now = getIndianDateTime();
 
     const userMobStr = String(user.mobile);
-
-    // ---------------------------------------------------
-    // 6. Get Latest Balance + 4 Wheeler Fee
-    // ---------------------------------------------------
 
     const feeRows = await runQuery<
       {
@@ -115,14 +71,10 @@ export async function POST(request: NextRequest) {
       [user.id],
     );
 
-    // ---------------------------------------------------
-    // 7. Retailer Account Check
-    // ---------------------------------------------------
-
     if (feeRows.length === 0) {
       return NextResponse.json(
         {
-          message: "Retailer account not found",
+          message: 'Retailer account not found',
         },
         {
           status: 404,
@@ -130,22 +82,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ---------------------------------------------------
-    // 8. Balance + Service Charge
-    // ---------------------------------------------------
-
     const oldBalance = Number(feeRows[0].balance ?? 0);
 
     const charge = Number(feeRows[0].fee ?? 50);
 
-    // ---------------------------------------------------
-    // 9. Validate Service Fee
-    // ---------------------------------------------------
-
     if (!Number.isFinite(charge) || charge <= 0) {
       return NextResponse.json(
         {
-          message: "Invalid 4 wheeler service fee",
+          message: 'Invalid 4 wheeler service fee',
         },
         {
           status: 500,
@@ -153,14 +97,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ---------------------------------------------------
-    // 10. Balance Check
-    // ---------------------------------------------------
-
     if (oldBalance < charge) {
       return NextResponse.json(
         {
-          message: "Insufficient balance",
+          message: 'Insufficient balance',
           balance: oldBalance,
           required: charge,
         },
@@ -170,28 +110,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ---------------------------------------------------
-    // 11. Calculate New Balance
-    // ---------------------------------------------------
-
     const newBalance = oldBalance - charge;
-
-    // ---------------------------------------------------
-    // 12. Database Transaction
-    // ---------------------------------------------------
 
     const transactionResult = await runTransaction<{
       order_id: string;
     }>(async (conn) => {
-      // -------------------------------------------------
-      // 12.1 Generate 7 Digit Order ID
-      // -------------------------------------------------
-
       const order_id = generate7DigitNumber();
-
-      // -------------------------------------------------
-      // 12.2 Insert 4 Wheeler Order
-      // -------------------------------------------------
 
       await conn.query(
         `
@@ -210,12 +134,19 @@ export async function POST(request: NextRequest) {
           )
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
-        [userMobStr, order_id, vehicle_no, mobile_no, frontside, backside, STATUS_PENDING, null, now, null],
+        [
+          userMobStr,
+          order_id,
+          vehicle_no,
+          mobile_no,
+          frontside,
+          backside,
+          STATUS_PENDING,
+          null,
+          now,
+          null,
+        ],
       );
-
-      // -------------------------------------------------
-      // 12.3 Work History
-      // -------------------------------------------------
 
       await conn.query(
         `
@@ -236,13 +167,21 @@ export async function POST(request: NextRequest) {
           )
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
-        [order_id, userMobStr, SERVICE_ID, SERVICE_NAME, "panding", oldBalance, charge, newBalance, "debit", null, now, ""],
+        [
+          order_id,
+          userMobStr,
+          SERVICE_ID,
+          SERVICE_NAME,
+          'panding',
+          oldBalance,
+          charge,
+          newBalance,
+          'debit',
+          null,
+          now,
+          '',
+        ],
       );
-
-      // -------------------------------------------------
-      // 12.4 Transaction History
-      // -------------------------------------------------
-
       await conn.query(
         `
           INSERT INTO \`transitions\`
@@ -260,16 +199,19 @@ export async function POST(request: NextRequest) {
           )
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
-        [order_id, userMobStr, SERVICE_NAME, oldBalance, charge, newBalance, "debit", STATUS_SUCCESS, now, ""],
+        [
+          order_id,
+          userMobStr,
+          SERVICE_NAME,
+          oldBalance,
+          charge,
+          newBalance,
+          'debit',
+          STATUS_SUCCESS,
+          now,
+          '',
+        ],
       );
-
-      // -------------------------------------------------
-      // 12.5 Update Retailer Balance
-      //
-      // Balance is checked again here to avoid
-      // race conditions.
-      // -------------------------------------------------
-
       const [updateResult] = await conn.query<any>(
         `
             UPDATE retailer
@@ -281,12 +223,8 @@ export async function POST(request: NextRequest) {
         [charge, user.id, charge],
       );
 
-      // -------------------------------------------------
-      // 12.6 Verify Balance Update
-      // -------------------------------------------------
-
       if (updateResult.affectedRows !== 1) {
-        throw new Error("Insufficient balance");
+        throw new Error('Insufficient balance');
       }
 
       await conn.query(
@@ -313,22 +251,14 @@ export async function POST(request: NextRequest) {
 <b>Amount:</b> ₹${charge}
 <b>Status:</b> Pending
 `);
-      // -------------------------------------------------
-      // 12.7 Return Order ID
-      // -------------------------------------------------
-
       return {
         order_id,
       };
     });
 
-    // ---------------------------------------------------
-    // 13. Success Response
-    // ---------------------------------------------------
-
     return NextResponse.json(
       {
-        message: "4 Wheeler request submitted successfully",
+        message: '4 Wheeler request submitted successfully',
 
         id: Number(transactionResult.order_id),
 
@@ -345,34 +275,20 @@ export async function POST(request: NextRequest) {
       },
     );
   } catch (error: any) {
-    // ---------------------------------------------------
-    // 14. Error Log
-    // ---------------------------------------------------
-
-    console.error("4wheeler submit error:", error);
-
-    // ---------------------------------------------------
-    // 15. Insufficient Balance
-    // ---------------------------------------------------
-
-    if (error?.message === "Insufficient balance") {
+    console.error('4wheeler submit error:', error);
+    if (error?.message === 'Insufficient balance') {
       return NextResponse.json(
         {
-          message: "Insufficient balance",
+          message: 'Insufficient balance',
         },
         {
           status: 400,
         },
       );
     }
-
-    // ---------------------------------------------------
-    // 16. General Error
-    // ---------------------------------------------------
-
     return NextResponse.json(
       {
-        message: error?.message || "Internal server error",
+        message: error?.message || 'Internal server error',
       },
       {
         status: 500,

@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
             remark
           FROM transitions
           WHERE user_mob = ?
-          ORDER BY date_time DESC
+        ORDER BY id DESC LIMIT 7
         `,
         [user.mobile],
       ),

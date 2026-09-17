@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
         remark
       FROM transitions
       WHERE user_mob = ?
-      ORDER BY date_time DESC
+      ORDER BY id DESC
     `;
 
     const [rows] = await pool.query(sql, [user.mobile]);

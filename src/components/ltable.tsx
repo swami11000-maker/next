@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { RETAILER_DATA_CHANGED } from "@/lib/data-events";
 import { apiFetch } from "@/lib/api-client";
+import { formatIndianDate, formatIndianTime } from "@/lib/date-utils";
 
 interface WorkHistory {
   id: number;
@@ -140,12 +141,12 @@ export const Ltable = () => {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return { date: value, time: "" };
     return {
-      date: date.toLocaleDateString("en-IN", {
+      date: formatIndianDate(value, {
         day: "2-digit",
         month: "short",
         year: "numeric",
       }),
-      time: date.toLocaleTimeString("en-IN", {
+      time: formatIndianTime(value, {
         hour: "2-digit",
         minute: "2-digit",
         hour12: true,

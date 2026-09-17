@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { hashPassword, runQuery, runMutation, SqlParam, RetailerSafe, RETAILER_SAFE_COLUMNS } from "@/lib/auth";
+import { getAdminUser, hashPassword, runQuery, runMutation, SqlParam, RetailerSafe, RETAILER_SAFE_COLUMNS } from "@/lib/auth";
 
 const updateSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters" }).optional(),
@@ -45,6 +45,10 @@ const updateSchema = z.object({
 const RETAILER_SELECT = RETAILER_SAFE_COLUMNS.join(", ");
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const user = await getAdminUser(request);
+  if (!user) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
   try {
     const { id } = await params;
     const rows = await runQuery<RetailerSafe[]>(
@@ -64,6 +68,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const user = await getAdminUser(request);
+  if (!user) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
   try {
     const { id } = await params;
     const body = await request.json();
@@ -116,6 +124,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const user = await getAdminUser(request);
+  if (!user) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
   try {
     const { id } = await params;
     const existing = await runQuery<{ id: number }[]>(

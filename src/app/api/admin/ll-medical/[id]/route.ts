@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { runQuery, runMutation, runTransaction, SqlParam, LL_MEDICAL_SAFE_COLUMNS } from "@/lib/auth";
+import { getAdminUser, runQuery, runMutation, runTransaction, SqlParam, LL_MEDICAL_SAFE_COLUMNS } from "@/lib/auth";
 import type { LlMedicalRequest } from "@/lib/auth";
 import { STATUS_REFUND, STATUS_SUCCESS } from "@/lib/statuses";
+import { getIndianDateTime } from "@/lib/utils";
 
 const updateSchema = z.object({
   status: z.enum(["panding", "refund", "success"]).optional(),
@@ -14,6 +15,10 @@ const RETAILER_SELECT = LL_MEDICAL_SAFE_COLUMNS.join(", ");
 const SERVICE_NAME = "Learning Exam Medical";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const user = await getAdminUser(request);
+  if (!user) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
   try {
     const { id } = await params;
     const rows = await runQuery<LlMedicalRequest[]>(`SELECT ${RETAILER_SELECT} FROM \`ll_medical\` WHERE id = ? LIMIT 1`, [Number(id)]);
@@ -30,6 +35,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const user = await getAdminUser(request);
+  if (!user) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
   try {
     const { id } = await params;
     const body = await request.json();
@@ -47,7 +56,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const orderId = requestData.order_id;
     const userMob = requestData.user_mob;
     const currentStatus = requestData.status;
-    const now = new Date().toISOString().slice(0, 19).replace("T", " ");
+    const now = getIndianDateTime();
     if (currentStatus === STATUS_REFUND) {
       return NextResponse.json({ message: "Already Refunded " }, { status: 404 });
     }
@@ -198,6 +207,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const user = await getAdminUser(request);
+  if (!user) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
   try {
     const { id } = await params;
     const existing = await runQuery<{ id: number }[]>("SELECT id FROM `ll_medical` WHERE id = ? LIMIT 1", [Number(id)]);

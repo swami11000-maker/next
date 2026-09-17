@@ -377,3 +377,13 @@ export async function getUserDeatail(request: NextRequest): Promise<Retailer | n
     return null;
   }
 }
+
+export async function getAdminUser(request: NextRequest): Promise<Retailer | null> {
+  const user = await getUserDeatail(request);
+
+  if (!user) return null;
+
+  if (user.usertype !== "superAdmin") return null;
+
+  return user;
+}

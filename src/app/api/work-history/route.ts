@@ -18,23 +18,7 @@ export async function GET(request: NextRequest) {
     }
 
     const sql = `
-      SELECT 
-        id,
-        order_id,
-        user_mob,
-        service_name,
-        service_id,
-        old_balance,
-        charge,
-        new_balance,
-        document,
-        tranfer_type,
-        status,
-        date_time,
-        remark
-      FROM workhistory
-      WHERE user_mob = ?
-      ORDER BY date_time DESC
+      SELECT * FROM workhistory WHERE user_mob = ? ORDER BY id DESC
     `;
 
     const [rows] = await pool.query(sql, [user.mobile]);

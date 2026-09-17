@@ -1,22 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
-import { runQuery, SqlParam } from "@/lib/auth";
+import { getAdminUser, runQuery, SqlParam } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
+  const user = await getAdminUser(request);
+  if (!user) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
   try {
     const searchParams = request.nextUrl.searchParams;
-    const search = searchParams.get("search") || "";
-    const status = searchParams.get("status") || "";
-    const type = searchParams.get("type") || "";
-    const dateFrom = searchParams.get("dateFrom") || "";
-    const dateTo = searchParams.get("dateTo") || "";
-    const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
-    const limit = Math.max(1, parseInt(searchParams.get("limit") || "50"));
+
+    /* ---------------------------- Inputs ---------------------------- */
+    const search = (searchParams.get("search") || "").trim();
+    const status = (searchParams.get("status") || "").trim();
+    const type = (searchParams.get("type") || "").trim();
+    const dateFrom = (searchParams.get("dateFrom") || "").trim();
+    const dateTo = (searchParams.get("dateTo") || "").trim();
+
+    /* ---------------------------- Pagination ---------------------------- */
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10) || 1);
+    const limitRaw = parseInt(searchParams.get("limit") || "10", 10) || 10;
+    const limit = Math.max(1, Math.min(100, limitRaw));
     const offset = (page - 1) * limit;
 
     const fetchTransitions = type !== "gateway";
     const fetchGateway = type !== "transition";
 
-    // ---------- Transitions WHERE + params ----------
+    /* ------------------------------------------------------------------ */
+    /*                        TRANSITIONS WHERE                           */
+    /* ------------------------------------------------------------------ */
     let whereTransitions = "WHERE t.service_name = 'Add Money'";
     const transitionsParams: SqlParam[] = [];
 
@@ -38,7 +49,9 @@ export async function GET(request: NextRequest) {
       transitionsParams.push(dateTo + " 23:59:59");
     }
 
-    // ---------- Gateway WHERE + params ----------
+    /* ------------------------------------------------------------------ */
+    /*                          GATEWAY WHERE                             */
+    /* ------------------------------------------------------------------ */
     let whereGateway = "WHERE gt.payment_type = 'add_money'";
     const gatewayParams: SqlParam[] = [];
 
@@ -49,7 +62,6 @@ export async function GET(request: NextRequest) {
       gatewayParams.push(term, term, term, term);
     }
     if (status) {
-      // yahan gt.status use kiya hai, txn_status nahi
       whereGateway += " AND gt.status = ?";
       gatewayParams.push(status);
     }
@@ -62,14 +74,16 @@ export async function GET(request: NextRequest) {
       gatewayParams.push(dateTo + " 23:59:59");
     }
 
-    // ---------- Total count ----------
+    /* ------------------------------------------------------------------ */
+    /*                          TOTAL COUNT                               */
+    /* ------------------------------------------------------------------ */
     let total = 0;
 
     if (fetchTransitions) {
       const countSqlT = `SELECT COUNT(*) as total FROM \`transitions\` t ${whereTransitions}`;
       const countRowsT = await runQuery<{ total: number }[]>(
         countSqlT,
-        transitionsParams
+        transitionsParams,
       );
       total += Number(countRowsT[0]?.total || 0);
     }
@@ -78,16 +92,19 @@ export async function GET(request: NextRequest) {
       const countSqlG = `SELECT COUNT(*) as total FROM \`gateway_transactions\` gt ${whereGateway}`;
       const countRowsG = await runQuery<{ total: number }[]>(
         countSqlG,
-        gatewayParams
+        gatewayParams,
       );
       total += Number(countRowsG[0]?.total || 0);
     }
 
-    // ---------- Fetch data ----------
+    /* ------------------------------------------------------------------ */
+    /*                          FETCH DATA                                */
+    /* ------------------------------------------------------------------ */
+    // ⚠️ LIMIT/OFFSET are inlined as integers (already parsed + clamped)
+    //    because MySQL prepared statements reject `LIMIT ?` with strings.
     let allRows: any[] = [];
 
     if (fetchTransitions && fetchGateway) {
-      // Dono tables ko UNION ALL karke combined pagination
       const unionSql = `
         SELECT 
           t.id, t.order_id, t.date_time, t.status, t.remark, t.new_balance, t.charge,
@@ -107,14 +124,12 @@ export async function GET(request: NextRequest) {
         ${whereGateway}
 
         ORDER BY date_time DESC
-        LIMIT ? OFFSET ?
+        LIMIT ${limit} OFFSET ${offset}
       `;
 
       allRows = await runQuery<any[]>(unionSql, [
         ...transitionsParams,
         ...gatewayParams,
-        limit,
-        offset,
       ]);
     } else if (fetchTransitions) {
       const sql = `
@@ -125,13 +140,9 @@ export async function GET(request: NextRequest) {
         FROM \`transitions\` t
         ${whereTransitions}
         ORDER BY t.date_time DESC
-        LIMIT ? OFFSET ?
+        LIMIT ${limit} OFFSET ${offset}
       `;
-      allRows = await runQuery<any[]>(sql, [
-        ...transitionsParams,
-        limit,
-        offset,
-      ]);
+      allRows = await runQuery<any[]>(sql, [...transitionsParams]);
     } else if (fetchGateway) {
       const sql = `
         SELECT 
@@ -142,14 +153,15 @@ export async function GET(request: NextRequest) {
         FROM \`gateway_transactions\` gt
         ${whereGateway}
         ORDER BY gt.date_time DESC
-        LIMIT ? OFFSET ?
+        LIMIT ${limit} OFFSET ${offset}
       `;
-      allRows = await runQuery<any[]>(sql, [
-        ...gatewayParams,
-        limit,
-        offset,
-      ]);
+      allRows = await runQuery<any[]>(sql, [...gatewayParams]);
     }
+
+    /* ------------------------------------------------------------------ */
+    /*                          PAGINATION META                           */
+    /* ------------------------------------------------------------------ */
+    const totalPages = Math.max(1, Math.ceil(total / limit));
 
     return NextResponse.json({
       data: allRows,
@@ -157,14 +169,16 @@ export async function GET(request: NextRequest) {
         page,
         limit,
         total,
-        totalPages: Math.ceil(total / limit),
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
       },
     });
   } catch (error: unknown) {
     console.error("Admin add money history error:", error);
     return NextResponse.json(
       { message: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

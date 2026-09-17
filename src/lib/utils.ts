@@ -1,14 +1,16 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { formatIndianDateTime } from "./date-utils";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
 export function generate7DigitNumber(): string {
-  return Math.floor(1000000 + Math.random() * 9000000).toString();
+  return `ORN-${Math.floor(
+    1000000000 + Math.random() * 9000000000
+  )}`;
 }
-
 export function generateOrder(): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
@@ -60,5 +62,36 @@ export async function tgAlert(money: string | number) {
     };
   }
 }
+
+
+export function getIndianDateTime(date: Date = new Date()): string {
+  return new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  })
+    .format(date)
+    .replace(",", "");
+}
+
+export const formatDate = (date: string) => {
+  if (!date) return '-';
+  const parsedDate = new Date(date);
+  if (Number.isNaN(parsedDate.getTime())) return date;
+
+  return formatIndianDateTime(date, {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+};
 
 

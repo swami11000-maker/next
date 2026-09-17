@@ -3,12 +3,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServiceFee } from "@/lib/actions";
 import { getUserDeatail, runTransaction, isServiceEnabled } from "@/lib/auth";
 import type { Retailer } from "@/lib/auth";
-import { generate7DigitNumber } from "@/lib/utils";
+import { generate7DigitNumber, getIndianDateTime } from "@/lib/utils";
 import { STATUS_SUCCESS } from "@/lib/statuses";
 
 export interface EshramPdfResponse {
   StatusCode?: number;
-  Status?: string | number; // Fixed: API "Success" string bhejti hai
+  Status?: string | number;
   application_no?: string;
   message: string;
   data?: EshramPdfData;
@@ -203,7 +203,7 @@ export async function GET(request: NextRequest) {
     // --------------------------------------------------
     // 13. Prepare Transaction Data
     // --------------------------------------------------
-    const now = new Date().toISOString().slice(0, 19).replace("T", " ");
+    const now = getIndianDateTime();
     const userMobStr = String(user.mobile);
 
     // --------------------------------------------------

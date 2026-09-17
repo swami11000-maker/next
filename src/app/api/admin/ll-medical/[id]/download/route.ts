@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { runQuery } from "@/lib/auth";
+import { getAdminUser, runQuery } from "@/lib/auth";
 
 const SELECT_DOC = ["id", "`admin_upload_doc`", "`application_no`", "`user_mob`"].join(", ");
 
@@ -7,6 +7,10 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const user = await getAdminUser(request);
+  if (!user) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
   try {
     const { id } = await params;
     const rows = await runQuery<any[]>(

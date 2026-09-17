@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { runQuery, runMutation, SqlParam, RetailerSafe, RETAILER_SAFE_COLUMNS } from "@/lib/auth";
+import { getAdminUser, runQuery, runMutation, SqlParam, RetailerSafe, RETAILER_SAFE_COLUMNS } from "@/lib/auth";
 
 
 const RETAILER_SELECT = RETAILER_SAFE_COLUMNS.join(", ");
@@ -15,7 +15,11 @@ const retailerSchema = z.object({
   balance: z.number().default(0),
 });
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const user = await getAdminUser(request);
+  if (!user) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
   try {
     const rows = await runQuery<RetailerSafe[]>(
       `SELECT ${RETAILER_SELECT} FROM retailer ORDER BY id DESC`,
@@ -29,6 +33,10 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const user = await getAdminUser(request);
+  if (!user) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
   try {
     const body = await request.json();
     const result = retailerSchema.safeParse(body);

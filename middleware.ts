@@ -90,25 +90,33 @@ export function middleware(request: NextRequest) {
       );
     }
 
-    try {
-      const payload = jwt.verify(token, APP_KEY) as {
-        id: number;
-        mobile: string;
-        email: string;
-        usertype: string;
-      };
+     try {
+       const payload = jwt.verify(token, APP_KEY) as {
+         id: number;
+         mobile: string;
+         email: string;
+         usertype: string;
+       };
 
-      const requestHeaders = new Headers(request.headers);
-      requestHeaders.set("x-user-id", String(payload.id));
-      requestHeaders.set("x-user-mobile", payload.mobile);
-      requestHeaders.set("x-user-email", payload.email);
-      requestHeaders.set("x-user-type", payload.usertype);
+       const requestHeaders = new Headers(request.headers);
+       requestHeaders.set("x-user-id", String(payload.id));
+       requestHeaders.set("x-user-mobile", payload.mobile);
+       requestHeaders.set("x-user-email", payload.email);
+       requestHeaders.set("x-user-type", payload.usertype);
 
-      return NextResponse.next({
-        request: {
-          headers: requestHeaders,
-        },
-      });
+       // Admin routes require superAdmin role
+       if (pathname.startsWith("/api/admin/") && payload.usertype !== "superAdmin") {
+         return NextResponse.json(
+           { error: "Forbidden — admin access required" },
+           { status: 403 },
+         );
+       }
+
+       return NextResponse.next({
+         request: {
+           headers: requestHeaders,
+         },
+       });
     } catch {
       return NextResponse.json(
         { error: "Invalid or expired token" },

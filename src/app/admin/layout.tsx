@@ -2,6 +2,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { LogoutButton } from "@/components/logout-button";
 import { requireRole } from "@/lib/session";
+import { AdminAlerts } from "@/components/AdminAlerts";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -19,7 +20,7 @@ export default async function Layout({ children }: LayoutProps) {
           {/* Header */}
           <header className="sticky top-0 z-40 flex h-16 w-full shrink-0 items-center border-b bg-background/95 px-3 backdrop-blur sm:px-4 bg-gradient-to-r from-black via-black to-[#ff3800]/5 relative rounded-b-4xl">
             <SidebarTrigger className="mr-2 bg-black" />
-
+<AdminAlerts />
             <div className="min-w-0 flex-1 text-right">
               <span className="text-sm font-medium text-white">{session.email}</span>
             </div>

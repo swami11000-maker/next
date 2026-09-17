@@ -1,28 +1,35 @@
-"use client";
+'use client';
 
-import * as React from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import { motion } from "framer-motion";
+import * as React from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { motion } from 'framer-motion';
 
-import { ArrowRight, Car, Loader2, Phone, Trash2, Upload } from "lucide-react";
+import { ArrowRight, Car, Loader2, Phone, Trash2, Upload } from 'lucide-react';
 
-import { Button } from "@/components/ui/button";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Button } from '@/components/ui/button';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
 
-import { Input } from "@/components/ui/input";
+import { Input } from '@/components/ui/input';
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-import { useDataProvider } from "@/hooks/useDataProvider";
+import { useDataProvider } from '@/hooks/useDataProvider';
 
-import { ServiceChargeCard } from "../ui/service-charge-card";
-import { toast } from "../ui/toast";
-import { ImageUpload } from "../ui/imageupload";
-import { emitRetailerDataChanged } from "@/lib/data-events";
-import { apiFetch } from "@/lib/api-client";
-import { useAlerts } from "@/hooks/use-alert";
+import { ServiceChargeCard } from '../ui/service-charge-card';
+import { toast } from '../ui/toast';
+import { ImageUpload } from '../ui/imageupload';
+import { emitRetailerDataChanged } from '@/lib/data-events';
+import { apiFetch } from '@/lib/api-client';
+import { useAlerts } from '@/hooks/use-alert';
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -33,7 +40,7 @@ function fileToBase64(file: File): Promise<string> {
     };
 
     reader.onerror = () => {
-      reject(new Error("Unable to read image file"));
+      reject(new Error('Unable to read image file'));
     };
 
     reader.readAsDataURL(file);
@@ -41,42 +48,48 @@ function fileToBase64(file: File): Promise<string> {
 }
 const MAX_FILE_SIZE = 2 * 1024 * 1024;
 
-const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 const formSchema = z.object({
   mobileNumber: z
     .string()
     .length(10, {
-      message: "Mobile number must be exactly 10 digits",
+      message: 'Mobile number must be exactly 10 digits',
     })
     .regex(/^[6-9]\d{9}$/, {
-      message: "Enter a valid 10 digit mobile number",
+      message: 'Enter a valid 10 digit mobile number',
     }),
 
   vehicleNumber: z
     .string()
     .min(4, {
-      message: "Vehicle number is required",
+      message: 'Vehicle number is required',
     })
     .max(15, {
-      message: "Invalid vehicle number",
+      message: 'Invalid vehicle number',
     })
     .regex(/^[A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{1,4}$/, {
-      message: "Example: PB10AB1234",
+      message: 'Example: PB10AB1234',
     }),
 
   frontSidePhoto: z
     .instanceof(File, {
-      message: "Front side photo is required",
+      message: 'Front side photo is required',
     })
-    .refine((file) => file.size <= MAX_FILE_SIZE, "Front side photo must be less than 2 MB")
-    .refine((file) => ACCEPTED_IMAGE_TYPES.includes(file.type), "Only JPG, JPEG, PNG or WEBP images are allowed"),
+    .refine((file) => file.size <= MAX_FILE_SIZE, 'Front side photo must be less than 2 MB')
+    .refine(
+      (file) => ACCEPTED_IMAGE_TYPES.includes(file.type),
+      'Only JPG, JPEG, PNG or WEBP images are allowed',
+    ),
 
   backSidePhoto: z
     .instanceof(File, {
-      message: "Back side photo is required",
+      message: 'Back side photo is required',
     })
-    .refine((file) => file.size <= MAX_FILE_SIZE, "Back side photo must be less than 2 MB")
-    .refine((file) => ACCEPTED_IMAGE_TYPES.includes(file.type), "Only JPG, JPEG, PNG or WEBP images are allowed"),
+    .refine((file) => file.size <= MAX_FILE_SIZE, 'Back side photo must be less than 2 MB')
+    .refine(
+      (file) => ACCEPTED_IMAGE_TYPES.includes(file.type),
+      'Only JPG, JPEG, PNG or WEBP images are allowed',
+    ),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -85,13 +98,13 @@ export default function VehicleDocumentUpload() {
   const [isLoading, setIsLoading] = React.useState(false);
 
   const { retailer } = useDataProvider();
-const {refreshAlerts} = useAlerts();
+  const { refreshAlerts } = useAlerts();
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
 
     defaultValues: {
-      mobileNumber: "",
-      vehicleNumber: "",
+      mobileNumber: '',
+      vehicleNumber: '',
       frontSidePhoto: undefined,
       backSidePhoto: undefined,
     },
@@ -99,18 +112,21 @@ const {refreshAlerts} = useAlerts();
 
   const onSubmit = async (data: FormValues) => {
     setIsLoading(true);
-    const loadingToastId = toast.loading("Uploading documents...", {
-      description: "Please wait while we process your vehicle request.",
+    const loadingToastId = toast.loading('Uploading documents...', {
+      description: 'Please wait while we process your vehicle request.',
     });
 
     try {
-      const [frontside, backside] = await Promise.all([fileToBase64(data.frontSidePhoto), fileToBase64(data.backSidePhoto)]);
+      const [frontside, backside] = await Promise.all([
+        fileToBase64(data.frontSidePhoto),
+        fileToBase64(data.backSidePhoto),
+      ]);
 
-      const response = await apiFetch("/api/2wheeler", {
-        method: "POST",
+      const response = await apiFetch('/api/2wheeler', {
+        method: 'POST',
 
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
 
         body: JSON.stringify({
@@ -118,7 +134,7 @@ const {refreshAlerts} = useAlerts();
           mobile_no: data.mobileNumber,
           frontside,
           backside,
-          fees: retailer?.["2wheeler_fee"] || 70,
+          fees: retailer?.['2wheeler_fee'] || 70,
         }),
       });
 
@@ -127,8 +143,8 @@ const {refreshAlerts} = useAlerts();
       if (!response.ok) {
         toast.dismiss(loadingToastId);
 
-        toast.error("Request failed", {
-          description: result?.message || result?.error || "Unable to complete the request.",
+        toast.error('Request failed', {
+          description: result?.message || result?.error || 'Unable to complete the request.',
         });
 
         return;
@@ -136,25 +152,29 @@ const {refreshAlerts} = useAlerts();
 
       toast.dismiss(loadingToastId);
 
-      toast.success("Request submitted successfully!", {
-        description: result?.message || "Your vehicle documents have been uploaded successfully.",
+      toast.success('Request submitted successfully!', {
+        description: result?.message || 'Your vehicle documents have been uploaded successfully.',
         duration: 5000,
       });
 
       emitRetailerDataChanged();
 
       form.reset({
-        mobileNumber: "",
-        vehicleNumber: "",
+        mobileNumber: '',
+        vehicleNumber: '',
         frontSidePhoto: undefined,
         backSidePhoto: undefined,
       });
-     await refreshAlerts()
+
+      await refreshAlerts();
     } catch (error) {
       toast.dismiss(loadingToastId);
 
-      toast.error("Something went wrong", {
-        description: error instanceof Error ? error.message : "Unable to complete the request. Please try again.",
+      toast.error('Something went wrong', {
+        description:
+          error instanceof Error
+            ? error.message
+            : 'Unable to complete the request. Please try again.',
       });
     } finally {
       setIsLoading(false);
@@ -165,14 +185,14 @@ const {refreshAlerts} = useAlerts();
     if (isLoading) return;
 
     form.reset({
-      mobileNumber: "",
-      vehicleNumber: "",
+      mobileNumber: '',
+      vehicleNumber: '',
       frontSidePhoto: undefined,
       backSidePhoto: undefined,
     });
 
-    toast.info("Form cleared", {
-      description: "All entered vehicle information has been removed.",
+    toast.info('Form cleared', {
+      description: 'All entered vehicle information has been removed.',
     });
   };
 
@@ -194,11 +214,13 @@ const {refreshAlerts} = useAlerts();
             <Car className="h-7 w-7 text-[#ff3800]" />
           </div>
 
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-4xl lg:text-5xl">
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl lg:text-5xl dark:text-white">
             Vehicle <span className="text-[#ff3800]">2 Wheeler</span>
           </h1>
 
-          <p className="mx-auto mt-2 max-w-xl text-sm text-slate-500 dark:text-gray-400 sm:text-base">Upload your vehicle 2 Wheeler photos and submit your request</p>
+          <p className="mx-auto mt-2 max-w-xl text-sm text-slate-500 sm:text-base dark:text-gray-400">
+            Upload your vehicle 2 Wheeler photos and submit your request
+          </p>
         </motion.div>
 
         <motion.div
@@ -216,8 +238,8 @@ const {refreshAlerts} = useAlerts();
         >
           <Card className="border-slate-200 bg-white/80 shadow-xl backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.03]">
             <CardHeader className="px-4 pb-6 sm:px-6">
-              <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 dark:border-white/10 sm:flex-row sm:items-center sm:justify-between">
-                <CardTitle className="flex items-center gap-2 text-lg font-semibold text-slate-800 dark:text-white sm:text-xl">
+              <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 sm:flex-row sm:items-center sm:justify-between dark:border-white/10">
+                <CardTitle className="flex items-center gap-2 text-lg font-semibold text-slate-800 sm:text-xl dark:text-white">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#ff3800]/10">
                     <Car className="h-5 w-5 text-[#ff3800]" />
                   </span>
@@ -225,7 +247,11 @@ const {refreshAlerts} = useAlerts();
                   <span>Enter Vehicle Details</span>
                 </CardTitle>
 
-                <ServiceChargeCard charge={retailer?.["2wheeler_fee"] ?? 0} serviceName="2 Wheeler" className="w-full sm:w-auto sm:max-w-none" />
+                <ServiceChargeCard
+                  charge={retailer?.['2wheeler_fee'] ?? 0}
+                  serviceName="2 Wheeler"
+                  className="w-full sm:w-auto sm:max-w-none"
+                />
               </div>
             </CardHeader>
 
@@ -257,7 +283,7 @@ const {refreshAlerts} = useAlerts();
                               placeholder="Enter 10 digit mobile number"
                               className="h-12 rounded-xl border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-[#ff3800] focus:ring-[#ff3800]/20 dark:border-[#ff3800]/20 dark:bg-white/5 dark:text-white dark:placeholder:text-gray-500"
                               onChange={(event) => {
-                                const value = event.target.value.replace(/\D/g, "").slice(0, 10);
+                                const value = event.target.value.replace(/\D/g, '').slice(0, 10);
 
                                 field.onChange(value);
                               }}
@@ -288,11 +314,11 @@ const {refreshAlerts} = useAlerts();
                               maxLength={15}
                               autoComplete="off"
                               placeholder="Example: PB10AB1234"
-                              className="h-12 rounded-xl border-slate-200 bg-white uppercase text-slate-900 placeholder:text-slate-400 focus:border-[#ff3800] focus:ring-[#ff3800]/20 dark:border-[#ff3800]/20 dark:bg-white/5 dark:text-white dark:placeholder:text-gray-500"
+                              className="h-12 rounded-xl border-slate-200 bg-white text-slate-900 uppercase placeholder:text-slate-400 focus:border-[#ff3800] focus:ring-[#ff3800]/20 dark:border-[#ff3800]/20 dark:bg-white/5 dark:text-white dark:placeholder:text-gray-500"
                               onChange={(event) => {
                                 const value = event.target.value
                                   .toUpperCase()
-                                  .replace(/[^A-Z0-9]/g, "")
+                                  .replace(/[^A-Z0-9]/g, '')
                                   .slice(0, 15);
 
                                 field.onChange(value);
@@ -300,7 +326,9 @@ const {refreshAlerts} = useAlerts();
                             />
                           </FormControl>
 
-                          <p className="text-xs text-slate-400 dark:text-gray-500">Example: PB10AB1234</p>
+                          <p className="text-xs text-slate-400 dark:text-gray-500">
+                            Example: PB10AB1234
+                          </p>
 
                           <FormMessage className="text-[#ff3800]" />
                         </FormItem>
@@ -314,7 +342,12 @@ const {refreshAlerts} = useAlerts();
                       render={({ field, fieldState }) => (
                         <FormItem>
                           <FormControl>
-                            <ImageUpload label="Front Side Photo" value={field.value} onChange={field.onChange} error={fieldState.error?.message} />
+                            <ImageUpload
+                              label="Front Side Photo"
+                              value={field.value}
+                              onChange={field.onChange}
+                              error={fieldState.error?.message}
+                            />
                           </FormControl>
                         </FormItem>
                       )}
@@ -325,17 +358,22 @@ const {refreshAlerts} = useAlerts();
                       render={({ field, fieldState }) => (
                         <FormItem>
                           <FormControl>
-                            <ImageUpload label="Back Side Photo" value={field.value} onChange={field.onChange} error={fieldState.error?.message} />
+                            <ImageUpload
+                              label="Back Side Photo"
+                              value={field.value}
+                              onChange={field.onChange}
+                              error={fieldState.error?.message}
+                            />
                           </FormControl>
                         </FormItem>
                       )}
                     />
                   </div>
-                  <div className="flex flex-col gap-3 border-t border-slate-100 pt-5 dark:border-white/10 sm:flex-row">
+                  <div className="flex flex-col gap-3 border-t border-slate-100 pt-5 sm:flex-row dark:border-white/10">
                     <Button
                       type="submit"
                       disabled={isLoading}
-                      className="group h-12 w-full cursor-pointer flex-1 rounded-xl bg-[#ff3800] font-semibold text-white shadow-lg shadow-[#ff3800]/20 transition-all duration-300 hover:bg-[#ff3800]/90 hover:shadow-[#ff3800]/30 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="group h-12 w-full flex-1 cursor-pointer rounded-xl bg-[#ff3800] font-semibold text-white shadow-lg shadow-[#ff3800]/20 transition-all duration-300 hover:bg-[#ff3800]/90 hover:shadow-[#ff3800]/30 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {isLoading ? (
                         <>
@@ -355,7 +393,7 @@ const {refreshAlerts} = useAlerts();
                       variant="outline"
                       onClick={handleReset}
                       disabled={isLoading}
-                      className="h-12 w-full rounded-xl border-slate-200 px-6 font-medium text-slate-700 transition-all hover:border-[#ff3800]/30 hover:bg-[#ff3800]/5 dark:border-[#ff3800]/20 dark:text-gray-300 dark:hover:bg-[#ff3800]/5 sm:w-auto"
+                      className="h-12 w-full rounded-xl border-slate-200 px-6 font-medium text-slate-700 transition-all hover:border-[#ff3800]/30 hover:bg-[#ff3800]/5 sm:w-auto dark:border-[#ff3800]/20 dark:text-gray-300 dark:hover:bg-[#ff3800]/5"
                     >
                       <Trash2 className="mr-2 h-4 w-4" />
                       Clear

@@ -17,6 +17,7 @@ interface UseAlertsReturn {
   loading: boolean;
   error: string | null;
   refreshAlerts: () => Promise<void>;
+  removeAlert: (id: number | string) => void;
 }
 
 export function useAlerts(): UseAlertsReturn {
@@ -38,17 +39,11 @@ export function useAlerts(): UseAlertsReturn {
       }
 
       const data = await res.json();
-
       setAlerts(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Alert fetch error:", error);
 
-      setAlerts([]);
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Failed to fetch alerts"
-      );
+      setError(error instanceof Error ? error.message : "Failed to fetch alerts");
     } finally {
       setLoading(false);
     }
@@ -58,10 +53,15 @@ export function useAlerts(): UseAlertsReturn {
     getAlert();
   }, [getAlert]);
 
+  const removeAlert = useCallback((id: number | string) => {
+    setAlerts((current) => current.filter((alert) => alert.id !== id));
+  }, []);
+
   return {
     alerts,
     loading,
     error,
     refreshAlerts: getAlert,
+    removeAlert,
   };
 }

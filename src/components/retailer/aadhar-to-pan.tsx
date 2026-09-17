@@ -113,7 +113,7 @@ export default function PanFind() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       aadhaar: "",
-      server: "server_1",
+      server: "server_2",
     },
   });
 
@@ -129,8 +129,8 @@ export default function PanFind() {
     setSearchedAadhaar(aadhaar);
 
     try {
-       const response = await apiFetch(
-         `/api/aadhar-to-pan?aadhaar_no=${encodeURIComponent(aadhaar)}&server=${encodeURIComponent(server)}`,
+      const response = await apiFetch(
+        `/api/aadhar-to-pan?aadhaar_no=${encodeURIComponent(aadhaar)}&server=${encodeURIComponent(server)}`,
         {
           method: "GET",
           cache: "no-store",

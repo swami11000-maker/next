@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { runQuery } from "@/lib/auth";
+import { getAdminUser, runQuery } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
+  const user = await getAdminUser(request);
+  if (!user) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
   try {
     const [
       retailerStats,

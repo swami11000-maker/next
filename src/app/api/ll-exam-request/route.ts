@@ -5,7 +5,7 @@ import { getUserDeatail, runQuery, runTransaction, isServiceEnabled } from "@/li
 
 import type { Retailer } from "@/lib/auth";
 import { STATUS_PENDING, STATUS_SUCCESS } from "@/lib/statuses";
-import { generate7DigitNumber, tgAlert } from "@/lib/utils";
+import { generate7DigitNumber, getIndianDateTime, tgAlert } from "@/lib/utils";
 
 // -----------------------------------------------------
 // Validation Schema
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
     // 5. Current Date & Time
     // ---------------------------------------------------
 
-    const now = new Date().toISOString().slice(0, 19).replace("T", " ");
+    const now = getIndianDateTime();
 
     // ---------------------------------------------------
     // 6. Retailer Mobile

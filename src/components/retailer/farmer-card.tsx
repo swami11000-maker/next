@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, Loader2, AlertCircle, ArrowRight, RefreshCcw, CreditCard,
   CheckCircle2, FileDown, Receipt, BadgeCheck, User, MapPin, Database,
-  IndianRupee, FileText, PaletteIcon, Server, Info, Hash, FileWarning,
+  IndianRupee, FileText, PaletteIcon, Server, Info, Hash, FileWarning, Wallet,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -48,45 +48,63 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 /* =========================================================
-   TYPES
+   TYPES  (server-aware)
 ========================================================= */
 
-interface FarmerInnerData {
-  status?: string | number;
+/** Server 1 raw data (from `/api/farmer-pdf`) */
+interface Server1Data {
+  status?: string;
   message?: string;
   data_mode?: string;
   source?: string;
   billable?: string;
   aadhaar?: string;
   name?: string;
-  fullname?: string;
   application_no?: string;
   amount?: string;
   balance_left?: string;
   pdf?: string;
-  sampleCode?: string;
 }
 
+/** Server 2 raw data (from `/api/farmer-pdf/dx`) */
+interface Server2Data {
+  sampleCode?: string;
+  aadhaar?: string;
+  fullname?: string;
+  pdf?: string;
+  status?: string | number;
+  message?: string;
+  error?: string;
+}
+
+/** Wrapper returned by BOTH backend routes */
 interface ApiWrapper {
   message?: string;
   order_id?: string;
+  id?: number;
   charge?: number;
   old_balance?: number;
   new_balance?: number;
   state?: string;
+
+  // Server 1 top-level fields
   name?: string;
-  fullname?: string;
-  aadhaar?: string;
   application_no?: string;
   billable?: string;
   amount?: string;
-  pdf?: string;
+
+  // Server 2 top-level fields
   sampleCode?: string;
+  fullname?: string;
+
+  // Common
+  aadhaar?: string;
+  pdf?: string;
   status?: string | number;
   error?: string;
   api_mode?: string;
   mode?: string;
-  data?: FarmerInnerData;
+  data?: Server1Data | Server2Data;
 }
 
 type ApiServer = "server1" | "server2";
@@ -112,31 +130,54 @@ function pick<T = any>(...vals: (T | undefined | null)[]): T | undefined {
  * Detect which mode the response represents based on fields present
  */
 function detectMode(result: ApiWrapper): ApiMode {
-  // Explicit mode from backend
   if (result.mode === "pdf" || result.mode === "info") return result.mode;
-  if (result.api_mode === "pdf" || result.api_mode === "info") return result.api_mode as ApiMode;
+  if (result.api_mode === "pdf" || result.api_mode === "info")
+    return result.api_mode as ApiMode;
 
-  const pdf = pick(result.pdf, result.data?.pdf);
-  const fullname = pick(result.fullname, result.name, result.data?.fullname, result.data?.name);
+  const pdf = pick(result.pdf, (result.data as any)?.pdf);
+  if (pdf) return "pdf";
 
-  if (pdf && fullname) return "pdf";
-  if (fullname || pick(result.sampleCode, result.data?.sampleCode)) return "info";
+  const info = pick(
+    result.fullname,
+    result.name,
+    result.sampleCode,
+    result.application_no,
+    (result.data as any)?.fullname,
+    (result.data as any)?.name,
+    (result.data as any)?.sampleCode,
+    (result.data as any)?.application_no
+  );
+  if (info) return "info";
   return "unknown";
 }
 
-function normaliseResult(result: ApiWrapper) {
-  const merged: FarmerInnerData = { ...(result.data || {}) };
+/**
+ * Server-aware normalisation:
+ * - server1 → name, application_no, billable, amount, balance_left, data_mode, source
+ * - server2 → fullname, sampleCode
+ * Common → aadhaar, pdf, order_id, charge, old_balance, new_balance, state, message
+ */
+function normaliseResult(result: ApiWrapper, server: ApiServer | null) {
+  const merged = (result.data || {}) as any;
+  const isServer2 = server === "server2";
+
   return {
     aadhaar: pick(result.aadhaar, merged.aadhaar),
-    name: pick(result.fullname, result.name, merged.fullname, merged.name),
+
+    // Server1 → name priority, Server2 → fullname priority
+    name: isServer2
+      ? pick(result.fullname, merged.fullname, result.name, merged.name)
+      : pick(result.name, merged.name, result.fullname, merged.fullname),
+
     pdf: pick(result.pdf, merged.pdf),
     sampleCode: pick(result.sampleCode, merged.sampleCode),
     applicationNo: pick(result.application_no, merged.application_no),
     billable: pick(result.billable, merged.billable),
     amount: pick(result.amount, merged.amount),
-    balanceLeft: pick(merged.balance_left),
+    balanceLeft: pick(merged.balance_left, (result as any).balance_left),
     dataMode: pick(result.mode, result.api_mode, merged.data_mode),
-    source: pick(merged.source),
+    source: pick(merged.source, (result as any).source),
+    status: pick(result.status, merged.status),
     orderId: pick(result.order_id),
     charge: result.charge,
     oldBalance: result.old_balance,
@@ -145,7 +186,6 @@ function normaliseResult(result: ApiWrapper) {
     message: pick(result.message, merged.message),
   };
 }
-
 
 function DetailItem({
   icon: Icon,
@@ -202,9 +242,9 @@ export default function FarmerAgriPdfPage() {
   const [showDialog, setShowDialog] = React.useState(false);
   const [searchedAadhaar, setSearchedAadhaar] = React.useState("");
 
-  // ✅ which API was used
+  // which API was used
   const [usedServer, setUsedServer] = React.useState<ApiServer | null>(null);
-  // ✅ detected response mode
+  // detected response mode
   const [apiMode, setApiMode] = React.useState<ApiMode>("unknown");
 
   /* =========================================================
@@ -253,7 +293,6 @@ export default function FarmerAgriPdfPage() {
         throw new Error("Invalid response received from Farmer Agri PDF service.");
       }
 
-
       // HTTP error
       if (!response.ok) {
         const errMsg =
@@ -267,13 +306,25 @@ export default function FarmerAgriPdfPage() {
       const mode = detectMode(apiResult);
       setApiMode(mode);
 
-      // Success validation: either pdf OR info fields must exist
-      const pdf = pick(apiResult.pdf, apiResult.data?.pdf);
-      const sampleCode = pick(apiResult.sampleCode, apiResult.data?.sampleCode);
-      const fullname = pick(apiResult.fullname, apiResult.name, apiResult.data?.fullname, apiResult.data?.name);
+      // Success validation: pdf OR any usable info field must exist
+      const pdf = pick(apiResult.pdf, (apiResult.data as any)?.pdf);
+      const sampleCode = pick(apiResult.sampleCode, (apiResult.data as any)?.sampleCode);
+      const fullname = pick(
+        apiResult.fullname,
+        apiResult.name,
+        (apiResult.data as any)?.fullname,
+        (apiResult.data as any)?.name
+      );
+      const appNo = pick(
+        apiResult.application_no,
+        (apiResult.data as any)?.application_no
+      );
 
-      if (!pdf && !sampleCode && !fullname) {
-        const errMsg = apiResult.error || apiResult.message || "No usable data returned from API.";
+      if (!pdf && !sampleCode && !fullname && !appNo) {
+        const errMsg =
+          apiResult.error ||
+          apiResult.message ||
+          "No usable data returned from API.";
         throw new Error(errMsg);
       }
 
@@ -285,19 +336,21 @@ export default function FarmerAgriPdfPage() {
       console.error("Farmer Agri PDF Error:", err);
       setResult(null);
       setApiMode("unknown");
-      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+      setError(
+        err instanceof Error ? err.message : "Something went wrong. Please try again."
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
   /* =========================================================
-     NORMALISED DATA
+     NORMALISED DATA (server-aware)
   ========================================================= */
 
   const normalised = React.useMemo(
-    () => (result ? normaliseResult(result) : null),
-    [result]
+    () => (result ? normaliseResult(result, usedServer) : null),
+    [result, usedServer]
   );
 
   /* =========================================================
@@ -307,109 +360,105 @@ export default function FarmerAgriPdfPage() {
   const canDownload = Boolean(normalised?.pdf);
 
   const downloadPdf = async () => {
-  if (!normalised?.pdf) {
-    alert("PDF data not available");
-    return;
-  }
-
-  const pdfSource = normalised.pdf;
-  const filename = `FARMER_${normalised.aadhaar || searchedAadhaar}_${Date.now()}.pdf`;
-
-  try {
-    // ---------- Clean base64 (remove whitespace/newlines) ----------
-    const cleanBase64 = (str: string) =>
-      str.replace(/^data:application\/pdf;base64,/, "").replace(/\s/g, "");
-
-    // ---------- Case 1: already a URL (http/https) ----------
-    if (/^https?:\/\//i.test(pdfSource)) {
-      const res = await fetch(pdfSource, { cache: "no-store" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const blob = await res.blob();
-      triggerDownload(blob, filename);
+    if (!normalised?.pdf) {
+      alert("PDF data not available");
       return;
     }
 
-    // ---------- Case 2: already a blob: URL ----------
-    if (pdfSource.startsWith("blob:")) {
-      const a = document.createElement("a");
-      a.href = pdfSource;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      return;
-    }
+    const pdfSource = normalised.pdf;
+    const filename = `FARMER_${normalised.aadhaar || searchedAadhaar}_${Date.now()}.pdf`;
 
-    // ---------- Case 3: base64 (with or without data: prefix) ----------
-    const base64 = cleanBase64(pdfSource);
-    if (base64.length < 100) throw new Error("Invalid PDF data");
-
-    const blob = base64ToBlob(base64, "application/pdf");
-    triggerDownload(blob, filename);
-  } catch (err) {
-    console.error("PDF download failed:", err);
-    alert(
-      "PDF download failed: " +
-        (err instanceof Error ? err.message : "Unknown error")
-    );
-  }
-};
-
-/* ---------- Chunked base64 → Blob (large files safe) ---------- */
-function base64ToBlob(base64: string, mime: string): Blob {
-  const sliceSize = 1024;
-  const byteArrays: BlobPart[] = [];
-
-  for (let offset = 0; offset < base64.length; offset += sliceSize) {
-    const slice = base64.slice(offset, offset + sliceSize);
-    const byteNumbers = new Array(slice.length);
-
-    for (let i = 0; i < slice.length; i++) {
-      byteNumbers[i] = slice.charCodeAt(i);
-    }
-let byteArray: BlobPart;
     try {
-      byteArray = new Uint8Array(
-        atob(slice)
-          .split("")
-          .map((c) => c.charCodeAt(0))
-      );
-    } catch {
-      // fallback: direct chars (agar already decoded)
-      byteArray = new Uint8Array(byteNumbers);
+      const cleanBase64 = (str: string) =>
+        str.replace(/^data:application\/pdf;base64,/, "").replace(/\s/g, "");
 
+      if (/^https?:\/\//i.test(pdfSource)) {
+        const res = await fetch(pdfSource, { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const blob = await res.blob();
+        triggerDownload(blob, filename);
+        return;
+      }
+
+      if (pdfSource.startsWith("blob:")) {
+        const a = document.createElement("a");
+        a.href = pdfSource;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        return;
+      }
+
+      const base64 = cleanBase64(pdfSource);
+      if (base64.length < 100) throw new Error("Invalid PDF data");
+
+      const blob = base64ToBlob(base64, "application/pdf");
+      triggerDownload(blob, filename);
+    } catch (err) {
+      console.error("PDF download failed:", err);
+      alert(
+        "PDF download failed: " +
+          (err instanceof Error ? err.message : "Unknown error")
+      );
+    }
+  };
+
+  function base64ToBlob(base64: string, mime: string): Blob {
+    const sliceSize = 1024;
+    const byteArrays: BlobPart[] = [];
+
+    for (let offset = 0; offset < base64.length; offset += sliceSize) {
+      const slice = base64.slice(offset, offset + sliceSize);
+      const byteNumbers = new Array(slice.length);
+
+      for (let i = 0; i < slice.length; i++) {
+        byteNumbers[i] = slice.charCodeAt(i);
+      }
+
+      let byteArray: BlobPart;
+      try {
+        byteArray = new Uint8Array(
+          atob(slice)
+            .split("")
+            .map((c) => c.charCodeAt(0))
+        );
+      } catch {
+        byteArray = new Uint8Array(byteNumbers);
+      }
+
+      byteArrays.push(byteArray);
     }
 
-    byteArrays.push(byteArray);
+    return new Blob(byteArrays, { type: mime });
   }
 
-  return new Blob(byteArrays, { type: mime });
-}
+  function triggerDownload(blob: Blob, filename: string) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.rel = "noopener";
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
 
-/* ---------- Actual download trigger ---------- */
-function triggerDownload(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.rel = "noopener";
-  a.style.display = "none";
-  document.body.appendChild(a);
-  a.click();
-
-  // cleanup after tick
-  setTimeout(() => {
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }, 1500);
-}
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 1500);
+  }
 
   /* =========================================================
      RESET
   ========================================================= */
 
   const resetSearch = () => {
-    form.reset({ aadhaar: "", state: "", server: form.getValues("server") || "server1" });
+    form.reset({
+      aadhaar: "",
+      state: "",
+      server: form.getValues("server") || "server1",
+    });
     setResult(null);
     setError(null);
     setSearchedAadhaar("");
@@ -424,7 +473,11 @@ function triggerDownload(blob: Blob, filename: string) {
 
   const containerVariants = {
     hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.5, staggerChildren: 0.1 } },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.5, staggerChildren: 0.1 },
+    },
   };
 
   const itemVariants = {
@@ -438,7 +491,12 @@ function triggerDownload(blob: Blob, filename: string) {
 
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8">
-      <motion.div initial="hidden" animate="visible" variants={containerVariants} className="max-w-2xl mx-auto">
+      <motion.div
+        initial="hidden"
+        animate="visible"
+        variants={containerVariants}
+        className="max-w-2xl mx-auto"
+      >
         {/* HEADER */}
         <motion.div variants={itemVariants} className="text-center mb-10">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#ff3800]/10">
@@ -495,12 +553,16 @@ function triggerDownload(blob: Blob, filename: string) {
                             placeholder="Enter 12-digit Aadhaar Number"
                             className="h-12 bg-white dark:bg-white/5 border-slate-200 dark:border-[#ff3800]/20 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-gray-500 focus:border-[#ff3800] focus:ring-[#ff3800]/20 rounded-xl transition-all font-mono tracking-widest text-center"
                             onChange={(e) => {
-                              const value = e.target.value.replace(/\D/g, "").slice(0, 12);
+                              const value = e.target.value
+                                .replace(/\D/g, "")
+                                .slice(0, 12);
                               field.onChange(value);
                             }}
                           />
                         </FormControl>
-                        <p className="text-xs text-slate-400 dark:text-gray-500">Example: 335400206902</p>
+                        <p className="text-xs text-slate-400 dark:text-gray-500">
+                          Example: 335400206902
+                        </p>
                         <FormMessage className="text-[#ff3800]" />
                       </FormItem>
                     )}
@@ -555,8 +617,8 @@ function triggerDownload(blob: Blob, filename: string) {
                           </FormControl>
                           <SelectContent className="rounded-xl border-slate-200 dark:border-[#ff3800]/20">
                             <SelectGroup>
-                              <SelectItem value="server1">SERVER 1 </SelectItem>
-                              <SelectItem value="server2">SERVER 2 </SelectItem>
+                              <SelectItem value="server1">SERVER 1</SelectItem>
+                              <SelectItem value="server2">SERVER 2</SelectItem>
                             </SelectGroup>
                           </SelectContent>
                         </Select>
@@ -622,7 +684,9 @@ function triggerDownload(blob: Blob, filename: string) {
                   <div className="flex flex-col gap-1">
                     <span>{error}</span>
                     {searchedAadhaar && (
-                      <span className="text-xs opacity-80">Aadhaar: {searchedAadhaar}</span>
+                      <span className="text-xs opacity-80">
+                        Aadhaar: {searchedAadhaar}
+                      </span>
                     )}
                     {usedServer && (
                       <span className="text-xs opacity-80">
@@ -638,7 +702,12 @@ function triggerDownload(blob: Blob, filename: string) {
 
         {/* RESULT DIALOG */}
         <Dialog open={showDialog} onOpenChange={setShowDialog}>
-          <DialogContent className={cn("sm:max-w-lg max-h-[90vh] overflow-hidden p-0 gap-0", "border-2 border-orange-600 bg-white shadow-2xl")}>
+          <DialogContent
+            className={cn(
+              "sm:max-w-lg max-h-[90vh] overflow-hidden p-0 gap-0",
+              "border-2 border-orange-600 bg-white shadow-2xl"
+            )}
+          >
             {/* Top Bar */}
             <motion.div
               initial={{ scaleX: 0 }}
@@ -685,7 +754,7 @@ function triggerDownload(blob: Blob, filename: string) {
 
             <Separator className="bg-orange-200 my-4" />
 
-            {/* ✅ API Server Used Banner */}
+            {/* API Server Used Banner */}
             <div className="px-6">
               <motion.div
                 initial={{ opacity: 0, y: 8 }}
@@ -723,8 +792,11 @@ function triggerDownload(blob: Blob, filename: string) {
                   </p>
                 </motion.div>
 
-                {/* Details Grid — dynamic, only non-empty items render */}
+                {/* ============================================================
+                    DETAILS GRID — server-aware, only non-empty items render
+                ============================================================ */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Common */}
                   <DetailItem
                     icon={CreditCard}
                     label="Aadhaar Number"
@@ -732,21 +804,70 @@ function triggerDownload(blob: Blob, filename: string) {
                     highlight
                     mono
                   />
-                  <DetailItem icon={User} label="Name" value={normalised?.name} highlight />
+
+                  {/* Name label differs by server */}
+                  <DetailItem
+                    icon={User}
+                    label={usedServer === "server2" ? "Full Name" : "Name"}
+                    value={normalised?.name}
+                    highlight
+                  />
+
                   <DetailItem icon={MapPin} label="State" value={normalised?.state} />
+
+                  {/* Server 2 only */}
                   <DetailItem
                     icon={Hash}
                     label="Sample Code"
                     value={normalised?.sampleCode}
                     mono
                   />
+
+                  {/* Server 1 only */}
                   <DetailItem
                     icon={BadgeCheck}
                     label="Application No"
                     value={normalised?.applicationNo}
                     mono
                   />
-                  <DetailItem icon={Receipt} label="Order ID" value={normalised?.orderId} mono />
+                  <DetailItem
+                    icon={BadgeCheck}
+                    label="Billable"
+                    value={normalised?.billable}
+                  />
+                  <DetailItem
+                    icon={IndianRupee}
+                    label="Amount"
+                    value={normalised?.amount ? `₹${normalised.amount}` : undefined}
+                  />
+                  <DetailItem
+                    icon={Database}
+                    label="Data Mode"
+                    value={normalised?.dataMode}
+                  />
+                  <DetailItem
+                    icon={Info}
+                    label="Source"
+                    value={normalised?.source}
+                  />
+                  <DetailItem
+                    icon={Wallet}
+                    label="Balance Left"
+                    value={
+                      normalised?.balanceLeft
+                        ? `₹${normalised.balanceLeft}`
+                        : undefined
+                    }
+                  />
+
+                  {/* Transaction (common) */}
+                  <DetailItem
+                    icon={Receipt}
+                    label="Order ID"
+                    value={normalised?.orderId}
+                    mono
+                  />
+
                   {typeof normalised?.charge === "number" && (
                     <DetailItem
                       icon={IndianRupee}
@@ -754,17 +875,23 @@ function triggerDownload(blob: Blob, filename: string) {
                       value={`₹${normalised.charge}`}
                     />
                   )}
-                  <DetailItem
-                    icon={Database}
-                    label="Data Mode"
-                    value={normalised?.dataMode}
-                  />
-                  <DetailItem
-                    icon={BadgeCheck}
-                    label="Billable"
-                    value={normalised?.billable}
-                  />
-                  <DetailItem icon={Info} label="Source" value={normalised?.source} />
+
+                  {typeof normalised?.oldBalance === "number" && (
+                    <DetailItem
+                      icon={Wallet}
+                      label="Old Balance"
+                      value={`₹${normalised.oldBalance}`}
+                    />
+                  )}
+
+                  {typeof normalised?.newBalance === "number" && (
+                    <DetailItem
+                      icon={Wallet}
+                      label="New Balance"
+                      value={`₹${normalised.newBalance}`}
+                      highlight
+                    />
+                  )}
                 </div>
 
                 {/* Info-only hint */}
@@ -777,8 +904,8 @@ function triggerDownload(blob: Blob, filename: string) {
                   >
                     <FileWarning className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
                     <p className="text-xs text-amber-800">
-                      Is API call me PDF generate nahi hui. Sirf verification details mili hain.
-                      PDF ke liye doosra server try karein.
+                      Is API call me PDF generate nahi hui. Sirf verification details
+                      mili hain. PDF ke liye doosra server try karein.
                     </p>
                   </motion.div>
                 )}

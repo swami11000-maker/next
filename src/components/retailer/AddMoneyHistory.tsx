@@ -1,27 +1,23 @@
-"use client";
+'use client';
 
-import * as React from "react";
-import { useState, useEffect, useMemo } from "react";
-import { Loader2, Download, CreditCard, ArrowUpRight, Search, Filter, X, Calendar } from "lucide-react";
+import * as React from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Loader2, CreditCard, ArrowUpRight, Search, X, Calendar, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { apiFetch } from "@/lib/api-client";
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DataTable, type ColumnDef } from '@/components/ui/data-table';
 
-interface Transition {
-  order_id: string;
-  service_name: string;
-  charge: number;
-  new_balance: number;
-  tranfer_type: string;
-  status: string;
-  date_time: string;
-  remark: string;
-}
+import { apiFetch } from '@/lib/api-client';
+import { formatIndianDateTime } from '@/lib/date-utils';
+import { TableError, TableLoading } from '../ui/table-loading';
+
+/* -------------------------------------------------------------------------- */
+/*                                  TYPES                                     */
+/* -------------------------------------------------------------------------- */
 
 interface GatewayTransaction {
   order_id: string;
@@ -35,63 +31,182 @@ interface GatewayTransaction {
   remark2: string | null;
 }
 
-interface AddMoneyHistoryResponse {
-  transitions: Transition[];
-  gateway_transactions: GatewayTransaction[];
-}
+type UnifiedTransaction = { type: 'gateway' } & GatewayTransaction;
 
-type UnifiedTransaction = 
-  | ({ type: "transition" } & Transition)
-  | ({ type: "gateway" } & GatewayTransaction);
+type StatusFilter = 'all' | 'success' | 'failed' | 'pending';
+type TypeFilter = 'all' | 'gateway';
 
-type StatusFilter = "all" | "success" | "failed" | "pending";
-type TypeFilter = "all" | "transition" | "gateway";
+type Pagination = {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+};
+
+const PAGE_SIZE = 10;
+
+/* -------------------------------------------------------------------------- */
+/*                              MAIN COMPONENT                                */
+/* -------------------------------------------------------------------------- */
 
 export const AddMoneyHistory = () => {
-  const [isLoading, setIsLoading] = useState(true);
-  const [transitions, setTransitions] = useState<Transition[]>([]);
-  const [gatewayTransactions, setGatewayTransactions] = useState<GatewayTransaction[]>([]);
+  const [data, setData] = useState<UnifiedTransaction[]>([]);
+
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [fetching, setFetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
 
-  const fetchHistory = async () => {
-    try {
-      setIsLoading(true);
-      const response = await apiFetch("/api/payment/addmoney/history", {
-        method: "GET",
-        cache: "no-store",
-      });
+  // server-side pagination
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<Pagination>({
+    page: 1,
+    limit: PAGE_SIZE,
+    total: 0,
+    totalPages: 1,
+    hasNextPage: false,
+    hasPrevPage: false,
+  });
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch history");
-      }
+  // filters
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
-      const data: AddMoneyHistoryResponse = await response.json();
-      setTransitions(data.transitions || []);
-      setGatewayTransactions(data.gateway_transactions || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load history");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  /* ---------------------------------------------------------------------- */
+  /*                     DEBOUNCE THE SEARCH INPUT                          */
+  /* ---------------------------------------------------------------------- */
 
   useEffect(() => {
-    fetchHistory();
-  }, []);
+    const t = setTimeout(() => {
+      setDebouncedSearch(searchQuery.trim());
+    }, 400);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  /* ---------------------------------------------------------------------- */
+  /*                                  FETCH                                 */
+  /* ---------------------------------------------------------------------- */
+
+  const fetchHistory = useCallback(
+    async (pageNumber: number = 1) => {
+      try {
+        setError(null);
+
+        if (pageNumber === 1 && data.length === 0) {
+          setInitialLoading(true);
+        } else {
+          setFetching(true);
+        }
+
+        // Build query params for API
+        const params = new URLSearchParams({
+          page: String(pageNumber),
+          limit: String(PAGE_SIZE),
+        });
+
+        if (debouncedSearch) params.set('search', debouncedSearch);
+        if (statusFilter !== 'all') params.set('status', statusFilter);
+        if (typeFilter !== 'all') params.set('type', typeFilter);
+        if (dateFrom) params.set('date_from', dateFrom);
+        if (dateTo) params.set('date_to', dateTo);
+
+        const response = await apiFetch(`/api/payment/addmoney/history?${params.toString()}`, { method: 'GET', cache: 'no-store' });
+
+        if (!response.ok) throw new Error('Failed to fetch history');
+
+        const result: any = await response.json();
+
+        // 🔍 Debug log
+        console.log('Add money history response:', result);
+
+        // Robust parsing
+        let list: GatewayTransaction[] = [];
+        if (Array.isArray(result)) {
+          list = result;
+        } else if (Array.isArray(result?.gateway_transactions)) {
+          list = result.gateway_transactions;
+        } else if (Array.isArray(result?.data)) {
+          list = result.data;
+        }
+
+        const unified: UnifiedTransaction[] = list.map((g) => ({
+          ...g,
+          type: 'gateway' as const,
+        }));
+
+        setData(unified);
+
+        // Pagination
+        setPagination(
+          result?.pagination || {
+            page: pageNumber,
+            limit: PAGE_SIZE,
+            total: unified.length,
+            totalPages: 1,
+            hasNextPage: false,
+            hasPrevPage: false,
+          },
+        );
+      } catch (err) {
+        console.error('Add money history fetch error:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load history');
+      } finally {
+        setInitialLoading(false);
+        setFetching(false);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [debouncedSearch, statusFilter, typeFilter, dateFrom, dateTo],
+  );
+
+  /* ---------- Reset to page 1 whenever filters change ---------- */
+  useEffect(() => {
+    setPage(1);
+    fetchHistory(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch, statusFilter, typeFilter, dateFrom, dateTo]);
+
+  /* ---------- Fetch when page changes (Next / Prev) ---------- */
+  useEffect(() => {
+    fetchHistory(page);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
+
+  /* ---------------------------------------------------------------------- */
+  /*                              PAGINATION                                */
+  /* ---------------------------------------------------------------------- */
+
+  const handleNext = () => {
+    if (!pagination.hasNextPage || fetching) return;
+    setPage((p) => p + 1);
+  };
+
+  const handlePrev = () => {
+    if (!pagination.hasPrevPage || fetching) return;
+    setPage((p) => Math.max(1, p - 1));
+  };
+
+  const handleRefresh = () => {
+    fetchHistory(page);
+  };
+
+  /* ---------------------------------------------------------------------- */
+  /*                              FORMATTERS                                */
+  /* ---------------------------------------------------------------------- */
 
   const formatDate = (dateStr: string) => {
     try {
-      return new Date(dateStr).toLocaleString("en-IN", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
+      return formatIndianDateTime(dateStr, {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
       });
     } catch {
       return dateStr;
@@ -99,156 +214,124 @@ export const AddMoneyHistory = () => {
   };
 
   const getStatusBadge = (status: string) => {
-    const statusLower = status.toLowerCase();
-    if (statusLower === "success" || statusLower === "completed") {
-      return <Badge className="bg-green-100 text-green-700 border-green-200">{status}</Badge>;
-    }
-    if (statusLower === "failed") {
-      return <Badge className="bg-red-100 text-red-700 border-red-200">{status}</Badge>;
-    }
-    if (statusLower === "pending") {
-      return <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200">{status}</Badge>;
-    }
+    const s = status?.toLowerCase() ?? '';
+    if (s === 'success' || s === 'completed') return <Badge className="border-green-200 bg-green-100 text-green-700">{status}</Badge>;
+    if (s === 'failed') return <Badge className="border-red-200 bg-red-100 text-red-700">{status}</Badge>;
+    if (s === 'pending' || s === 'panding') return <Badge className="border-yellow-200 bg-yellow-100 text-yellow-700">{status}</Badge>;
     return <Badge className="bg-gray-100 text-gray-700">{status}</Badge>;
   };
 
-  const getTxnStatus = (txn: UnifiedTransaction): string => {
-    if (txn.type === "transition") return txn.status;
-    return txn.txn_status || txn.status;
-  };
+  const getTxnStatus = (txn: UnifiedTransaction): string => txn.txn_status || txn.status;
 
-  const getTxnAmount = (txn: UnifiedTransaction): number => {
-    return txn.type === "transition" ? txn.charge : txn.amount;
-  };
+  const getTxnAmount = (txn: UnifiedTransaction): number => Number(txn.amount || 0);
 
-  const filteredTransactions = useMemo(() => {
-    return [...transitions.map((t) => ({ ...t, type: "transition" as const })),
-      ...gatewayTransactions.map((g) => ({ ...g, type: "gateway" as const }))]
-      .filter((txn) => {
-        // Search query filter
-        if (searchQuery) {
-          const query = searchQuery.toLowerCase();
-          const orderMatch = txn.order_id.toLowerCase().includes(query);
-          const utrMatch = txn.type === "gateway" && txn.utr?.toLowerCase().includes(query);
-          const remarkMatch = txn.type === "transition" 
-            ? txn.remark?.toLowerCase().includes(query)
-            : (txn.remark1?.toLowerCase().includes(query) || txn.remark2?.toLowerCase().includes(query));
-          if (!orderMatch && !utrMatch && !remarkMatch) return false;
-        }
+  /* ---------------------------------------------------------------------- */
+  /*                                FILTERS                                 */
+  /* ---------------------------------------------------------------------- */
 
-        // Status filter
-        if (statusFilter !== "all") {
-          const txnStatus = getTxnStatus(txn).toLowerCase();
-          if (txnStatus !== statusFilter) return false;
-        }
-
-        // Type filter
-        if (typeFilter !== "all" && txn.type !== typeFilter) return false;
-
-        // Date range filter
-        if (dateFrom) {
-          const txnDate = new Date(txn.date_time).getTime();
-          const fromDate = new Date(dateFrom).getTime();
-          if (txnDate < fromDate) return false;
-        }
-        if (dateTo) {
-          const txnDate = new Date(txn.date_time).getTime();
-          const toDate = new Date(dateTo + "T23:59:59").getTime();
-          if (txnDate > toDate) return false;
-        }
-
-        return true;
-      })
-      .sort((a, b) => new Date(b.date_time).getTime() - new Date(a.date_time).getTime());
-  }, [transitions, gatewayTransactions, searchQuery, statusFilter, typeFilter, dateFrom, dateTo]);
-
-  const hasActiveFilters = searchQuery || statusFilter !== "all" || typeFilter !== "all" || dateFrom || dateTo;
+  const hasActiveFilters = searchQuery || statusFilter !== 'all' || typeFilter !== 'all' || dateFrom || dateTo;
 
   const clearFilters = () => {
-    setSearchQuery("");
-    setStatusFilter("all");
-    setTypeFilter("all");
-    setDateFrom("");
-    setDateTo("");
+    setSearchQuery('');
+    setDebouncedSearch('');
+    setStatusFilter('all');
+    setTypeFilter('all');
+    setDateFrom('');
+    setDateTo('');
   };
 
-  if (isLoading) {
-    return (
-      <Card className="border-0 shadow-sm">
-        <CardContent className="py-12 text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-[#ff3800] mx-auto mb-3" />
-          <p className="text-slate-500">Loading add money history...</p>
-        </CardContent>
-      </Card>
-    );
-  }
+  /* ---------------------------------------------------------------------- */
+  /*                              COLUMNS                                   */
+  /* ---------------------------------------------------------------------- */
 
-  if (error) {
-    return (
-      <Card className="border-0 shadow-sm border-red-200">
-        <CardContent className="py-8 text-center text-red-600">
-          <p>{error}</p>
-          <Button variant="outline" onClick={fetchHistory} className="mt-4">
-            Try Again
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (filteredTransactions.length === 0) {
-    return (
-      <Card className="border-0 shadow-sm">
-        <CardContent className="py-12 text-center">
-          <CreditCard className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-1">
-            {hasActiveFilters ? "No matching transactions" : "No Add Money History"}
-          </h3>
-          <p className="text-slate-500">
-            {hasActiveFilters ? "Try adjusting your filters" : "Your add money transactions will appear here"}
-          </p>
-          {hasActiveFilters && (
-            <Button variant="outline" onClick={clearFilters} className="mt-4 gap-2">
-              <X className="h-4 w-4" />
-              Clear Filters
-            </Button>
-          )}
-        </CardContent>
-      </Card>
-    );
-  }
+  const columns = useMemo<ColumnDef<UnifiedTransaction>[]>(
+    () => [
+      {
+        key: 'date_time',
+        header: 'Date',
+        sortable: true,
+        sortValue: (row) => new Date(row.date_time).getTime() || 0,
+        cell: (row) => <span className="font-mono text-sm whitespace-nowrap text-slate-700 dark:text-slate-300">{formatDate(row.date_time)}</span>,
+      },
+      {
+        key: 'order_id',
+        header: 'Order ID',
+        sortable: true,
+        sortValue: (row) => row.order_id,
+        cell: (row) => <span className="font-mono text-sm whitespace-nowrap text-slate-700 dark:text-slate-300">{row.order_id || '-'}</span>,
+      },
+      {
+        key: 'amount',
+        header: 'Amount',
+        sortable: true,
+        sortValue: (row) => getTxnAmount(row),
+        cell: (row) => <span className="font-semibold whitespace-nowrap text-slate-900 dark:text-white">₹{getTxnAmount(row).toLocaleString('en-IN')}</span>,
+      },
+      {
+        key: 'status',
+        header: 'Status',
+        sortable: true,
+        sortValue: (row) => getTxnStatus(row),
+        cell: (row) => getStatusBadge(getTxnStatus(row)),
+      },
+      {
+        key: 'type',
+        header: 'Type',
+        sortable: true,
+        sortValue: (row) => row.type,
+        cell: (row) => <span className="text-sm text-slate-600 capitalize dark:text-slate-400">{row.type}</span>,
+      },
+      {
+        key: 'utr',
+        header: 'UTR',
+        cell: (row) => (
+          <span className="font-mono text-xs text-slate-500 dark:text-slate-400">
+            {row.utr ? (
+              <span className="inline-flex items-center">
+                {row.utr}
+                <Button variant="ghost" size="icon" className="ml-1 h-6 w-6 p-0" onClick={() => navigator.clipboard.writeText(row.utr!)} title="Copy UTR">
+                  <ArrowUpRight className="h-3 w-3" />
+                </Button>
+              </span>
+            ) : (
+              '—'
+            )}
+          </span>
+        ),
+      },
+    ],
+    [],
+  );
+ if (initialLoading) {
+     return <TableLoading message="Loading ..." />;
+   }
+   if (error) {
+     return <TableError error={error} onRetry={() => fetchHistory(page)} />;
+   }
 
   return (
     <div className="space-y-6">
-      {/* Header with refresh */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <CardTitle className="text-2xl font-bold text-slate-900 dark:text-white">Add Money History</CardTitle>
-        <Button variant="outline" onClick={fetchHistory} className="gap-2">
-          <Loader2 className="h-4 w-4" />
-          Refresh
+        <Button variant="outline" onClick={handleRefresh} disabled={fetching} className="gap-2">
+          <RefreshCw className={`h-4 w-4 text-2xl text-black ${fetching ? 'animate-spin' : ''}`} />
+          <span className='text-black'>Refresh</span>
         </Button>
       </div>
 
       {/* Filters */}
-      <Card className="border-0 shadow-sm bg-slate-50 dark:bg-slate-800/30">
+      <Card className="border-0 bg-slate-50 shadow-sm dark:bg-slate-800/30">
         <CardContent className="pt-4 pb-2">
           <div className="space-y-4">
-            {/* Search */}
             <div className="relative max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <Input
-                placeholder="Search Order ID, UTR, Remark..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 h-10"
-              />
+              <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input placeholder="Search Order ID, UTR, Remark..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="h-10 pl-10" />
             </div>
 
-            {/* Filter row */}
             <div className="flex flex-wrap items-center gap-3">
-              {/* Status Filter */}
-              <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
-                <SelectTrigger className="w-[150px] h-10">
+              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+                <SelectTrigger className="h-10 w-[150px]">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -259,44 +342,28 @@ export const AddMoneyHistory = () => {
                 </SelectContent>
               </Select>
 
-              {/* Type Filter */}
-              <Select value={typeFilter} onValueChange={(value) => setTypeFilter(value as TypeFilter)}>
-                <SelectTrigger className="w-[150px] h-10">
+              <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as TypeFilter)}>
+                <SelectTrigger className="h-10 w-[150px]">
                   <SelectValue placeholder="Type" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="transition">Transition</SelectItem>
                   <SelectItem value="gateway">Gateway</SelectItem>
                 </SelectContent>
               </Select>
 
-              {/* Date From */}
               <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <Input
-                  type="date"
-                  value={dateFrom}
-                  onChange={(e) => setDateFrom(e.target.value)}
-                  className="pl-10 h-10 w-[160px]"
-                  placeholder="From"
-                />
+                <Calendar className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-10 w-[160px] pl-10" />
               </div>
 
-              {/* Date To */}
               <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <Input
-                  type="date"
-                  value={dateTo}
-                  onChange={(e) => setDateTo(e.target.value)}
-                  className="pl-10 h-10 w-[160px]"
-                  placeholder="To"
-                />
+                <Calendar className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-10 w-[160px] pl-10" />
               </div>
 
               {hasActiveFilters && (
-                <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1 text-slate-600 dark:text-slate-400 hover:text-red-600">
+                <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1 text-slate-600 hover:text-red-600 dark:text-slate-400">
                   <X className="h-4 w-4" />
                   Clear
                 </Button>
@@ -306,65 +373,64 @@ export const AddMoneyHistory = () => {
         </CardContent>
       </Card>
 
-      {/* Results Table */}
-      <Card className="border-0 shadow-sm overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-slate-50 dark:bg-slate-800/50">
-              <TableHead className="text-left font-semibold text-slate-600 dark:text-slate-300">Date</TableHead>
-              <TableHead className="text-left font-semibold text-slate-600 dark:text-slate-300">Order ID</TableHead>
-              <TableHead className="text-left font-semibold text-slate-600 dark:text-slate-300">Amount</TableHead>
-              <TableHead className="text-left font-semibold text-slate-600 dark:text-slate-300">Status</TableHead>
-              <TableHead className="text-left font-semibold text-slate-600 dark:text-slate-300">Type</TableHead>
-              <TableHead className="text-left font-semibold text-slate-600 dark:text-slate-300">Balance</TableHead>
-              <TableHead className="text-left font-semibold text-slate-600 dark:text-slate-300">UTR</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredTransactions.map((txn, index) => (
-              <TableRow key={`${txn.type}-${txn.order_id}-${index}`} className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
-                <TableCell className="font-mono text-sm text-slate-700 dark:text-slate-300">{formatDate(txn.date_time)}</TableCell>
-                <TableCell className="font-mono text-sm text-slate-700 dark:text-slate-300">{txn.order_id}</TableCell>
-                <TableCell className="font-semibold text-slate-900 dark:text-white">₹{Number(getTxnAmount(txn)).toLocaleString("en-IN")}</TableCell>
-                <TableCell>{getStatusBadge(getTxnStatus(txn))}</TableCell>
-                <TableCell className="text-sm text-slate-600 dark:text-slate-400 capitalize">{txn.type}</TableCell>
-                <TableCell className="font-mono text-sm text-slate-700 dark:text-slate-300">
-                  {txn.type === "transition" && txn.new_balance !== undefined
-                    ? `₹${Number(txn.new_balance).toLocaleString("en-IN")}`
-                    : "—"}
-                </TableCell>
-                <TableCell className="font-mono text-xs text-slate-500 dark:text-slate-400">
-                  {txn.type === "gateway" && txn.utr ? (
-                    <>
-                      {txn.utr}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="ml-1 h-6 w-6 p-0"
-                        onClick={() => navigator.clipboard.writeText(txn.utr!)}
-                        title="Copy UTR"
-                      >
-                        <ArrowUpRight className="h-3 w-3" />
-                      </Button>
-                    </>
-                  ) : (
-                    "—"
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </Card>
+      {/* Results count */}
+      <div className="flex items-center justify-between text-sm text-slate-600 dark:text-slate-400">
+        <span>
+          Showing <strong className="text-slate-900 dark:text-white">{data.length}</strong> of <strong className="text-slate-900 dark:text-white">{pagination.total}</strong> transaction{pagination.total !== 1 ? 's' : ''}
+          {fetching && (
+            <span className="ml-2 inline-flex items-center gap-1 text-slate-500">
+              <Loader2 className="h-3 w-3 animate-spin" /> loading...
+            </span>
+          )}
+        </span>
+      </div>
 
-      {/* Footer */}
-      <Card className="border-0 shadow-sm bg-slate-50 dark:bg-slate-800/30">
-        <CardContent className="pt-6">
-          <p className="text-sm text-slate-600 dark:text-slate-400 text-center">
-            Showing {filteredTransactions.length} transaction{filteredTransactions.length !== 1 ? "s" : ""}
-          </p>
-        </CardContent>
-      </Card>
+      {/* DataTable — server already paginates, so pageSize = PAGE_SIZE */}
+      <DataTable<UnifiedTransaction>
+        data={data}
+        columns={columns}
+        getRowKey={(row, index) => `${row.order_id}-${index}`}
+        pageSize={PAGE_SIZE}
+        initialSortKey="date_time"
+        initialSortDirection="desc"
+        className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900"
+        emptyState={
+          <div className="flex flex-col items-center gap-3 py-6">
+            <CreditCard className="h-12 w-12 text-slate-300" />
+            <div>
+              <p className="text-base font-medium text-slate-900 dark:text-white">{hasActiveFilters ? 'No matching transactions' : 'No Add Money History'}</p>
+              <p className="mt-1 text-sm text-slate-500">{hasActiveFilters ? 'Try adjusting your filters' : 'Your add money transactions will appear here'}</p>
+            </div>
+            {hasActiveFilters && (
+              <Button variant="outline" onClick={clearFilters} className="mt-2 gap-2">
+                <X className="h-4 w-4" />
+                Clear Filters
+              </Button>
+            )}
+          </div>
+        }
+      />
+
+      {/* ✅ Server-side Next / Previous buttons */}
+      <div className="flex flex-col items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3 sm:flex-row dark:border-slate-700 dark:bg-slate-900">
+        <p className="text-sm text-slate-600 dark:text-slate-400">
+          Page <strong className="text-slate-900 dark:text-white">{pagination.page}</strong> of <strong className="text-slate-900 dark:text-white">{pagination.totalPages}</strong>
+          {' · '}
+          Total <strong className="text-slate-900 dark:text-white">{pagination.total}</strong> records
+        </p>
+
+        <div className="flex items-center gap-2 text-2xl text-slate-600 dark:text-slate-400">
+          <Button variant="outline" size="sm" onClick={handlePrev} disabled={!pagination.hasPrevPage || fetching} className="gap-1">
+            <ChevronLeft className="h-4 w-4" />
+            Previous
+          </Button>
+
+          <Button variant="outline" size="sm" onClick={handleNext} disabled={!pagination.hasNextPage || fetching} className="gap-1">
+            Next
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
     </div>
   );
 };

@@ -1,34 +1,53 @@
-import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
-import { runQuery, runMutation, runTransaction, SqlParam, TWOWHEELER_SAFE_COLUMNS } from "@/lib/auth";
-import type { TwoWheelerRequest, TwoWheelerStatus } from "@/lib/auth";
-import { STATUS_REFUND, STATUS_SUCCESS } from "@/lib/statuses";
+import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+import {
+  getAdminUser,
+  runQuery,
+  runMutation,
+  runTransaction,
+  SqlParam,
+  TWOWHEELER_SAFE_COLUMNS,
+} from '@/lib/auth';
+import type { TwoWheelerRequest, TwoWheelerStatus } from '@/lib/auth';
+import { STATUS_REFUND, STATUS_SUCCESS } from '@/lib/statuses';
+import { getIndianDateTime } from '@/lib/utils';
 
 const updateSchema = z.object({
-  status: z.enum(["panding", "refund", "success"]).optional(),
+  status: z.enum(['panding', 'refund', 'success']).optional(),
   admin_upload_doc: z.string().optional(),
   resposive_date_time: z.string().optional(),
 });
 
-const RETAILER_SELECT = TWOWHEELER_SAFE_COLUMNS.join(", ");
+const RETAILER_SELECT = TWOWHEELER_SAFE_COLUMNS.join(', ');
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const user = await getAdminUser(request);
+  if (!user) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
   try {
     const { id } = await params;
-    const rows = await runQuery<TwoWheelerRequest[]>(`SELECT ${RETAILER_SELECT} FROM \`2wheeler\` WHERE id = ? LIMIT 1`, [Number(id)]);
+    const rows = await runQuery<TwoWheelerRequest[]>(
+      `SELECT ${RETAILER_SELECT} FROM \`2wheeler\` WHERE id = ? LIMIT 1`,
+      [Number(id)],
+    );
 
     if (rows.length === 0) {
-      return NextResponse.json({ message: "Request not found" }, { status: 404 });
+      return NextResponse.json({ message: 'Request not found' }, { status: 404 });
     }
 
     return NextResponse.json(rows[0]);
   } catch (error) {
-    console.error("Get 2wheeler error:", error);
-    return NextResponse.json({ message: "Internal server error" }, { status: 500 });
+    console.error('Get 2wheeler error:', error);
+    return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
   }
 }
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const user = await getAdminUser(request);
+  if (!user) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
   try {
     const { id } = await params;
     const body = await request.json();
@@ -40,10 +59,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     // Check existing request
-    const existing = await runQuery<any[]>("SELECT id, order_id, user_mob, status FROM `2wheeler` WHERE id = ? LIMIT 1", [Number(id)]);
+    const existing = await runQuery<any[]>(
+      'SELECT id, order_id, user_mob, status FROM `2wheeler` WHERE id = ? LIMIT 1',
+      [Number(id)],
+    );
 
     if (existing.length === 0) {
-      return NextResponse.json({ message: "Request not found" }, { status: 404 });
+      return NextResponse.json({ message: 'Request not found' }, { status: 404 });
     }
 
     const requestData = existing[0];
@@ -52,42 +74,42 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const userMob = requestData.user_mob;
     const currentStatus = requestData.status;
     if (currentStatus === STATUS_REFUND) {
-      return NextResponse.json({ message: "Already Refunded " }, { status: 404 });
+      return NextResponse.json({ message: 'Already Refunded ' }, { status: 404 });
     }
     const updates: string[] = [];
     const values: SqlParam[] = [];
 
     // Update status
     if (result.data.status !== undefined) {
-      updates.push("`status` = ?");
+      updates.push('`status` = ?');
       values.push(result.data.status as TwoWheelerStatus);
 
-      updates.push("`resposive_date_time` = ?");
-      values.push(new Date().toISOString().slice(0, 19).replace("T", " "));
+      updates.push('`resposive_date_time` = ?');
+      values.push(new Date().toISOString().slice(0, 19).replace('T', ' '));
     }
 
     // Update admin document
     if (result.data.admin_upload_doc !== undefined) {
-      updates.push("`admin_upload_doc` = ?");
+      updates.push('`admin_upload_doc` = ?');
       values.push(result.data.admin_upload_doc);
     }
 
     // Update response date time if explicitly provided
     if (result.data.resposive_date_time !== undefined) {
-      if (!updates.includes("`resposive_date_time` = ?")) {
-        updates.push("`resposive_date_time` = ?");
+      if (!updates.includes('`resposive_date_time` = ?')) {
+        updates.push('`resposive_date_time` = ?');
         values.push(result.data.resposive_date_time);
       }
     }
 
     if (updates.length === 0) {
-      return NextResponse.json({ message: "No fields to update" }, { status: 400 });
+      return NextResponse.json({ message: 'No fields to update' }, { status: 400 });
     }
 
     const newStatus = result.data.status;
     const adminUploadDoc = result.data.admin_upload_doc;
 
-    const now = new Date().toISOString().slice(0, 19).replace("T", " ");
+    const now = getIndianDateTime();
 
     await runTransaction(async (conn) => {
       /*
@@ -97,7 +119,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
       const sql = `
         UPDATE \`2wheeler\`
-        SET ${updates.join(", ")}
+        SET ${updates.join(', ')}
         WHERE id = ?
         LIMIT 1
       `;
@@ -112,22 +134,22 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         const whValues: SqlParam[] = [];
 
         if (newStatus !== undefined) {
-          whUpdates.push("`status` = ?");
+          whUpdates.push('`status` = ?');
           whValues.push(newStatus);
         }
 
         if (adminUploadDoc !== undefined) {
-          whUpdates.push("`document` = ?");
+          whUpdates.push('`document` = ?');
           whValues.push(adminUploadDoc || null);
         }
 
-        whUpdates.push("`date_time` = ?");
+        whUpdates.push('`date_time` = ?');
         whValues.push(now);
 
         await conn.query(
           `
           UPDATE \`workhistory\`
-          SET ${whUpdates.join(", ")}
+          SET ${whUpdates.join(', ')}
           WHERE \`order_id\` = ?
           `,
           [...whValues, orderId],
@@ -161,7 +183,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         );
 
         if (!Array.isArray(workHistoryRows)) {
-          throw new Error("Invalid workhistory query response");
+          throw new Error('Invalid workhistory query response');
         }
 
         if (workHistoryRows.length === 0) {
@@ -173,7 +195,11 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         /*
          * Validate charge
          */
-        if (workHistory?.charge === null || workHistory?.charge === undefined || workHistory?.charge === "") {
+        if (
+          workHistory?.charge === null ||
+          workHistory?.charge === undefined ||
+          workHistory?.charge === ''
+        ) {
           throw new Error(`Invalid refund charge for order: ${orderId}`);
         }
 
@@ -203,7 +229,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         );
 
         if (!Array.isArray(retailerRows)) {
-          throw new Error("Invalid retailer query response");
+          throw new Error('Invalid retailer query response');
         }
 
         if (retailerRows.length === 0) {
@@ -215,7 +241,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         /*
          * Validate retailer ID
          */
-        if (retailer?.id === null || retailer?.id === undefined || retailer?.id === "") {
+        if (retailer?.id === null || retailer?.id === undefined || retailer?.id === '') {
           throw new Error(`Invalid retailer ID for mobile: ${retailerMobile}`);
         }
 
@@ -226,7 +252,11 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
          */
         let currentBalance = 0;
 
-        if (retailer.balance !== null && retailer.balance !== undefined && retailer.balance !== "") {
+        if (
+          retailer.balance !== null &&
+          retailer.balance !== undefined &&
+          retailer.balance !== ''
+        ) {
           currentBalance = Number(retailer.balance);
         }
 
@@ -243,7 +273,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
          * Final safety check
          */
         if (!Number.isFinite(newBalance)) {
-          throw new Error(`Invalid new balance calculation. Current: ${currentBalance}, Charge: ${charge}`);
+          throw new Error(
+            `Invalid new balance calculation. Current: ${currentBalance}, Charge: ${charge}`,
+          );
         }
 
         /*
@@ -278,7 +310,18 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
           )
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `,
-          [orderId, retailerMobile, "2 Wheeler PUC", currentBalance, charge, newBalance, "credit", STATUS_REFUND, now, "Refund for order " + orderId],
+          [
+            orderId,
+            retailerMobile,
+            '2 Wheeler PUC',
+            currentBalance,
+            charge,
+            newBalance,
+            'credit',
+            STATUS_REFUND,
+            now,
+            'Refund for order ' + orderId,
+          ],
         );
       }
     });
@@ -307,31 +350,41 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     return NextResponse.json(updated[0]);
   } catch (error) {
-    console.error("Update 2wheeler error:", error);
+    console.error('Update 2wheeler error:', error);
 
     return NextResponse.json(
       {
-        message: error instanceof Error ? error.message : "Internal server error",
+        message: error instanceof Error ? error.message : 'Internal server error',
       },
       { status: 500 },
     );
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const user = await getAdminUser(request);
+  if (!user) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
   try {
     const { id } = await params;
-    const existing = await runQuery<{ id: number }[]>("SELECT id FROM `2wheeler` WHERE id = ? LIMIT 1", [Number(id)]);
+    const existing = await runQuery<{ id: number }[]>(
+      'SELECT id FROM `2wheeler` WHERE id = ? LIMIT 1',
+      [Number(id)],
+    );
 
     if (existing.length === 0) {
-      return NextResponse.json({ message: "Request not found" }, { status: 404 });
+      return NextResponse.json({ message: 'Request not found' }, { status: 404 });
     }
 
-    await runMutation("DELETE FROM `2wheeler` WHERE id = ? LIMIT 1", [Number(id)]);
+    await runMutation('DELETE FROM `2wheeler` WHERE id = ? LIMIT 1', [Number(id)]);
 
-    return NextResponse.json({ message: "Request deleted successfully" });
+    return NextResponse.json({ message: 'Request deleted successfully' });
   } catch (error) {
-    console.error("Delete 2wheeler error:", error);
-    return NextResponse.json({ message: "Internal server error" }, { status: 500 });
+    console.error('Delete 2wheeler error:', error);
+    return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
   }
 }

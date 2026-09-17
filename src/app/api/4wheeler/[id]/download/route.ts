@@ -1,23 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
-import { runQuery } from "@/lib/auth";
+import { runQuery, getUserDeatail } from "@/lib/auth";
 import type { FourWheelerRequest } from "@/lib/auth";
 
-const SELECT_DOC = ["id", "`admin_upload_doc`", "`vehicle_no`", "`mobile_no`"].join(", ");
+const SELECT_DOC = ["id", "`admin_upload_doc`", "`user_mob`", "`mobile_no`"].join(", ");
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await getUserDeatail(request);
+    if (!user) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
     const { id } = await params;
-    console.log(params)
     const rows = await runQuery<FourWheelerRequest[]>(
       `SELECT ${SELECT_DOC} FROM \`4wheeler\` WHERE id = ? LIMIT 1`,
       [Number(id)]
     );
-console.log(rows)
+
     if (rows.length === 0) {
       return NextResponse.json({ message: "Request not found" }, { status: 404 });
+    }
+
+    if (String(rows[0].user_mob) !== String(user.mobile)) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 403 });
     }
 
     const doc = rows[0].admin_upload_doc;

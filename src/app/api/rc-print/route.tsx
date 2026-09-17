@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUserDeatail, runQuery, runMutation, runTransaction, isServiceEnabled } from "@/lib/auth";
 import type { Retailer } from "@/lib/auth";
 import { STATUS_SUCCESS, STATUS_PENDING } from "@/lib/statuses";
-import { generate7DigitNumber } from "@/lib/utils";
+import { generate7DigitNumber, getIndianDateTime } from "@/lib/utils";
 
 const SERVICE_NAME = "RC Print";
 
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
     const response = await fetch(url.toString());
     const data = await response.json();
 
-    const now = new Date().toISOString().slice(0, 19).replace("T", " ");
+    const now = getIndianDateTime();
     const userMobStr = String(user.mobile);
     const order_id = generate7DigitNumber();
 

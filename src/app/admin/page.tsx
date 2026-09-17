@@ -33,6 +33,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api-client";
+import { formatIndianDateTime } from "@/lib/date-utils";
 
 interface DashboardData {
   retailers: {
@@ -104,7 +105,7 @@ export default function AdminDashboard() {
   const formatCurrency = (value: number) => `₹${Number(value || 0).toLocaleString("en-IN")}`;
   const formatDate = (value: string) => {
     if (!value) return "-";
-    return new Date(value).toLocaleString("en-IN", {
+    return formatIndianDateTime(value, {
       day: "2-digit",
       month: "short",
       year: "numeric",
