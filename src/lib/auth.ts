@@ -334,6 +334,7 @@ export async function getUserDeatail(request: NextRequest): Promise<Retailer | n
     email,
     status,
     balance,
+    usertype,
     \`2wheeler_puc\`,
     \`2wheeler_fee\`,
     \`4wheeler_puc\`,
@@ -380,7 +381,7 @@ export async function getUserDeatail(request: NextRequest): Promise<Retailer | n
 
 export async function getAdminUser(request: NextRequest): Promise<Retailer | null> {
   const user = await getUserDeatail(request);
-
+console.log(user)
   if (!user) return null;
 
   if (user.usertype !== "superAdmin") return null;
