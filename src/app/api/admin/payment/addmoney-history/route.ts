@@ -123,7 +123,7 @@ export async function GET(request: NextRequest) {
         FROM \`gateway_transactions\` gt
         ${whereGateway}
 
-        ORDER BY date_time DESC
+        ORDER BY id DESC
         LIMIT ${limit} OFFSET ${offset}
       `;
 
@@ -139,7 +139,7 @@ export async function GET(request: NextRequest) {
           NULL as utr
         FROM \`transitions\` t
         ${whereTransitions}
-        ORDER BY t.date_time DESC
+        ORDER BY t.id DESC
         LIMIT ${limit} OFFSET ${offset}
       `;
       allRows = await runQuery<any[]>(sql, [...transitionsParams]);
@@ -152,7 +152,7 @@ export async function GET(request: NextRequest) {
           gt.utr
         FROM \`gateway_transactions\` gt
         ${whereGateway}
-        ORDER BY gt.date_time DESC
+        ORDER BY gt.id DESC
         LIMIT ${limit} OFFSET ${offset}
       `;
       allRows = await runQuery<any[]>(sql, [...gatewayParams]);
