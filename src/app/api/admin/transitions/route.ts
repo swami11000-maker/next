@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
         remark
       FROM transitions
       ${whereSql}
-      ORDER BY date_time DESC
+      ORDER BY id DESC
       LIMIT ? OFFSET ?
     `;
 
