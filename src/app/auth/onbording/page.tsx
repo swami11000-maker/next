@@ -1,7 +1,7 @@
 import { CreditCard } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-import { callCheckOrderStatus } from "../../api/auth/self-activation/route";
+import { callCheckOrderStatus } from "@/lib/gateway";
 
 interface OnboardingProps {
   searchParams: Promise<{
