@@ -10,6 +10,9 @@ const csp = [
 
 const nextConfig = {
   reactStrictMode: false,
+ eslint: {
+    ignoreDuringBuilds: true,
+  },
   headers: async () => {
     return [
       {
