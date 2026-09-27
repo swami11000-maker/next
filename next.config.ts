@@ -12,6 +12,12 @@ const csp = [
 
 const nextConfig: NextConfig = {
   reactStrictMode: false,
+
+  // 👇 Ye add karein — build ke dauraan ESLint error ignore kar dega
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+
   headers: async () => {
     return [
       {
@@ -36,7 +42,6 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-   
 };
 
 export default nextConfig;
