@@ -60,7 +60,7 @@ export default function Navbar() {
               href="/auth/login"
               className="px-6 py-2.5 bg-[#FF5A1F] text-white text-sm font-semibold rounded-full hover:bg-[#e54d18] transition-all duration-300 hover:shadow-lg hover:shadow-orange-500/25"
             >
-              Get Started
+              login
             </a>
           </div>
 
