@@ -18,8 +18,12 @@ export function PaymentModal({ onClose }: PaymentModalProps) {
   const searchParams = useSearchParams();
   const orderId = searchParams.get("order_id");
 
-
   const handleActivate = async () => {
+    if (Number(amount) < 101) {
+      setError("Please enter minimum 101 amount");
+      return;
+    }
+
     if (!amount || Number(amount) <= 0) {
       setError("Please enter a valid amount");
       return;
@@ -41,14 +45,12 @@ export function PaymentModal({ onClose }: PaymentModalProps) {
 
       const result = await response.json();
 
-
       if (!response.ok) {
         throw new Error(result.message || "Failed to initiate payment");
       }
 
       // ✅ Prefer hosted payment page, fallback to paytm/upi deep link
-      const redirectUrl =
-        result.payment_url || result.paytm_link || result.bhim_link;
+      const redirectUrl = result.payment_url || result.paytm_link || result.bhim_link;
 
       if (!redirectUrl) {
         throw new Error("Payment URL not received");
@@ -58,11 +60,7 @@ export function PaymentModal({ onClose }: PaymentModalProps) {
       window.location.href = redirectUrl;
     } catch (err) {
       console.error("Payment error:", err);
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Something went wrong. Please try again."
-      );
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
       setLoading(false);
     }
   };
@@ -88,13 +86,9 @@ export function PaymentModal({ onClose }: PaymentModalProps) {
                 <Wallet className="h-5 w-5 text-[#ff3800]" />
               </div>
 
-              <h2 className="text-xl font-bold tracking-tight text-white">
-                Add money to wallet
-              </h2>
+              <h2 className="text-xl font-bold tracking-tight text-white">Add money to wallet</h2>
 
-              <p className="mt-1.5 text-sm leading-5 text-zinc-500">
-                Enter the amount you'd like to add to your wallet.
-              </p>
+              <p className="mt-1.5 text-sm leading-5 text-zinc-500">Enter the amount you'd like to add to your wallet.</p>
             </div>
 
             <button
@@ -108,14 +102,10 @@ export function PaymentModal({ onClose }: PaymentModalProps) {
 
           {/* Amount */}
           <div className="mt-7">
-            <label className="mb-2 block text-xs font-medium uppercase tracking-wider text-zinc-500">
-              Amount
-            </label>
+            <label className="mb-2 block text-xs font-medium uppercase tracking-wider text-zinc-500">Amount</label>
 
             <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl font-semibold text-zinc-500">
-                ₹
-              </span>
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl font-semibold text-zinc-500">₹</span>
 
               <input
                 type="number"
@@ -137,11 +127,7 @@ export function PaymentModal({ onClose }: PaymentModalProps) {
                 key={value}
                 type="button"
                 onClick={() => setAmount(String(value))}
-                className={`rounded-xl border py-2 text-xs font-semibold transition-all ${
-                  amount === String(value)
-                    ? "border-[#ff3800]/40 bg-[#ff3800]/10 text-[#ff5a2f]"
-                    : "border-white/[0.07] bg-white/[0.03] text-zinc-400 hover:border-white/[0.15] hover:text-white"
-                }`}
+                className={`rounded-xl border py-2 text-xs font-semibold transition-all ${amount === String(value) ? "border-[#ff3800]/40 bg-[#ff3800]/10 text-[#ff5a2f]" : "border-white/[0.07] bg-white/[0.03] text-zinc-400 hover:border-white/[0.15] hover:text-white"}`}
               >
                 ₹{value.toLocaleString("en-IN")}
               </button>
@@ -149,11 +135,7 @@ export function PaymentModal({ onClose }: PaymentModalProps) {
           </div>
 
           {/* Error */}
-          {error && (
-            <div className="mt-4 rounded-xl border border-red-500/10 bg-red-500/10 px-4 py-3 text-sm text-red-400">
-              {error}
-            </div>
-          )}
+          {error && <div className="mt-4 rounded-xl border border-red-500/10 bg-red-500/10 px-4 py-3 text-sm text-red-400">{error}</div>}
 
           {/* Actions */}
           <div className="mt-7 flex gap-3">
@@ -183,9 +165,7 @@ export function PaymentModal({ onClose }: PaymentModalProps) {
             </button>
           </div>
 
-          <p className="mt-4 text-center text-[10px] text-zinc-600">
-            Secure payment • Your wallet will be updated after confirmation
-          </p>
+          <p className="mt-4 text-center text-[10px] text-zinc-600">Secure payment • Your wallet will be updated after confirmation</p>
         </div>
       </div>
     </div>
