@@ -20,8 +20,7 @@ const APP_KEY =
   "fallback_secret_change_me";
 
 function getAllowedOrigins(): string[] {
-  const configured =
-    process.env.ALLOWED_ORIGINS || process.env.NEXT_PUBLIC_APP_URL || "";
+  const configured = process.env.NEXT_PUBLIC_APP_URL || "";
 
   return configured
     .split(",")

@@ -6,7 +6,7 @@ import { callAddmoneyOrderStatus } from "@/lib/gateway";
 
 const GATEWAY_BASE = (process.env.GATEWAY_URL || "https://pay.a1ejankari.com/api").replace(/\/+$/, "");
 const GATEWAY_USER_TOKEN = process.env.GATEWAY_USER_TOKEN || "";
-const REDIRECT_URL = process.env.DOMAIN_URL || "http://localhost:3000";
+const REDIRECT_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
 function buildGatewayFormPayload(payload: Record<string, string>): URLSearchParams {
   const params = new URLSearchParams();
