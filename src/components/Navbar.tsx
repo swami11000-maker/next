@@ -99,7 +99,7 @@ export default function Navbar() {
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="mt-2 px-6 py-3 bg-[#FF5A1F] text-white text-center font-semibold rounded-full"
               >
-                Get Started
+                Login 
               </a>
             </div>
           </motion.div>
